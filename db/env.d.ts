@@ -6,5 +6,10 @@ declare namespace Cloudflare {
     OPENAI_MODEL?: string;
     OLLAMA_BASE_URL?: string;
     OLLAMA_MODEL?: string;
+    TELEGRAM_BOT_TOKEN?: string;
+    TELEGRAM_WEBHOOK_SECRET?: string;
+    NOTIFICATIONS_CRON_SECRET?: string;
+    QSTASH_CURRENT_SIGNING_KEY?: string;
+    QSTASH_NEXT_SIGNING_KEY?: string;
   }
 }

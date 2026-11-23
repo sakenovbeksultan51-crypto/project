@@ -32,6 +32,13 @@ function createDatabase() {
           const result = (await query!.query(sql, values)) as unknown as QueryResult;
           return (result.rows[0] as T | undefined) ?? null;
         },
+        async all<T>() {
+          await requireDatabase();
+          let nextParameter = 1;
+          const sql = statement.replace(/\?/g, () => `$${nextParameter++}`);
+          const result = (await query!.query(sql, values)) as unknown as QueryResult;
+          return { results: result.rows as T[], success: true };
+        },
         async run() {
           await requireDatabase();
           let nextParameter = 1;

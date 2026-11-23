@@ -23,5 +23,17 @@ export function useWorkspace(){
    },1200);return()=>clearInterval(timer);
  },[]);
  useEffect(()=>{const warn=(e:BeforeUnloadEvent)=>{if(dirty.current){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[]);
+ useEffect(()=>{
+   let alive=true;
+   const timer=setInterval(async()=>{
+     if(dirty.current||saving.current||blocked.current||!current.current)return;
+     const id=generation.current;
+     try{const response=await fetch(`/api/workspace?mode=${mode}`,{cache:'no-store'});if(!response.ok)return;const data=await response.json() as {state:AppState|null;revision:number};
+       if(!alive||id!==generation.current||dirty.current||saving.current||blocked.current||data.revision<=revision.current||!validateState(data.state))return;
+       revision.current=data.revision;current.current=data.state;setView(data.state);setSync('Сохранено');
+     }catch{}
+   },8000);
+   return()=>{alive=false;clearInterval(timer);};
+ },[mode,reloadCounter]);
  return {state,update,mode,setMode,sync,reload:()=>reload(n=>n+1),hasUnsaved:()=>dirty.current};
 }
