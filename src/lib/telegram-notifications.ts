@@ -12,7 +12,7 @@ const hash=async(text:string)=>Array.from(new Uint8Array(await crypto.subtle.dig
 const read=async(db:DB,key:string)=>db.prepare('SELECT payload,revision FROM workspaces WHERE key=?').bind(key).first<Row>();
 const save=async(db:DB,key:string,value:unknown)=>db.prepare('INSERT INTO workspaces (key,payload,revision,updated_at) VALUES (?,?,1,?) ON CONFLICT(key) DO UPDATE SET payload=excluded.payload,revision=workspaces.revision+1,updated_at=excluded.updated_at').bind(key,JSON.stringify(value),Date.now()).run();
 export function normalizeTelegramToken(value?:string){
- const text=value?.trim()||'',matches=[...text.matchAll(/\b\d{5,}:[A-Za-z0-9_-]{20,}\b/g)].map(m=>m[0]);
+ const text=value?.trim()||'',matches=[...text.matchAll(/\d{5,}:[A-Za-z0-9_-]{20,}/g)].map(m=>m[0]);
  return [...new Set(matches)].length===1?matches[0]:text;
 }
 export function pendingTask(table:Table,state:AppState):Task|null{

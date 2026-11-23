@@ -8,6 +8,7 @@ test('a copied BotFather reply or quoted assignment yields its sole token; ambig
  const token='123456789:'+ 'a'.repeat(35),other='987654321:'+ 'b'.repeat(35);
  assert.equal(normalizeTelegramToken(` TELEGRAM_BOT_TOKEN="${token}"\r\n`),token);
  assert.equal(normalizeTelegramToken(`Use this token to access the HTTP API:\n${token}\nKeep your token secure.`),token);
+ assert.equal(normalizeTelegramToken(`https://api.telegram.org/bot${token}-/getMe`),`${token}-`);
  assert.equal(normalizeTelegramToken(`${token}\n${other}`),`${token}\n${other}`);
  assert.equal(normalizeTelegramToken(), '');
 });
