@@ -41,20 +41,28 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
   catch(error){const e=error as {name?:string;code?:string;cause?:{code?:string}},code=e.cause?.code||e.code;console.error('[telegram] request failed',{method,name:/^[A-Za-z]+$/.test(e.name||'')?e.name:'unknown',code:/^[A-Z_]+$/.test(code||'')?code:'unknown'});throw new Error(method==='setWebhook'?'Не удалось связаться с Telegram при подключении уведомлений. Повторите позже.':'Не удалось связаться с Telegram при проверке бота. Повторите позже.');}
   if(response.status===401||response.status===404)throw new Error('Telegram не принял токен бота. Замените TELEGRAM_BOT_TOKEN в Vercel Production на токен из BotFather и выполните Redeploy.');
   const data=await response.json() as {ok:boolean;result:any;parameters?:{retry_after?:number}};
-  if(response.status===429){const delay=Number(data.parameters?.retry_after);throw new Error(`Telegram ограничил частоту подключений.${Number.isFinite(delay)&&delay>0?` Повторите через ${Math.ceil(delay)} сек.`:' Повторите подключение через минуту.'}`);}
+  if(response.status===429){const delay=Number(data.parameters?.retry_after);throw Object.assign(new Error(`Telegram ограничил частоту подключений.${Number.isFinite(delay)&&delay>0?` Повторите через ${Math.ceil(delay)} сек.`:' Повторите подключение через минуту.'}`),{retryAfterSeconds:Number.isFinite(delay)&&delay>0?Math.ceil(delay):60});}
   if(!response.ok||!data.ok)throw new Error(`Telegram временно недоступен (HTTP ${response.status}).`);
   return data.result;
  }
- async function setupWebhook(origin:string,force=false,timeoutMs=30000){
+ async function setupWebhook(origin:string,force=false,timeoutMs=120000){
   if(!env.TELEGRAM_WEBHOOK_SECRET)throw new Error('На сервере не настроен секрет Telegram webhook.');
   const url=new URL('/api/telegram/webhook',env.TELEGRAM_PUBLIC_URL||origin).href;
   const key=`tg:webhook:${await hash(botToken||'')}`,signature=await hash(`${url}:${env.TELEGRAM_WEBHOOK_SECRET}`),row=await read(db,key),registration=row?JSON.parse(row.payload):null;
   if(registration?.signature===signature&&registration.registeredAt&&Date.now()-registration.registeredAt<86400000)return {ready:true};
+  if(registration?.leaseUntil>Date.now())return {ready:false};
   if(!force&&registration?.signature===signature&&registration.retryAt>Date.now())return {ready:false};
+  const pending={signature,registeredAt:0,leaseUntil:Date.now()+timeoutMs+30000,retryAt:0};
+  const claim=row
+   ?await db.prepare('UPDATE workspaces SET payload=?,revision=revision+1,updated_at=? WHERE key=? AND revision=?').bind(JSON.stringify(pending),Date.now(),key,row.revision).run()
+   :await db.prepare('INSERT INTO workspaces (key,payload,revision,updated_at) VALUES (?,?,1,?) ON CONFLICT(key) DO NOTHING').bind(key,JSON.stringify(pending),Date.now()).run();
+  if(!claim.meta.changes)return {ready:false};
+  const heldRevision=row?row.revision+1:1;
+  const finish=(value:unknown)=>db.prepare('UPDATE workspaces SET payload=?,revision=revision+1,updated_at=? WHERE key=? AND revision=?').bind(JSON.stringify(value),Date.now(),key,heldRevision).run();
   try{
    await telegram('setWebhook',{url,secret_token:env.TELEGRAM_WEBHOOK_SECRET,allowed_updates:['message','callback_query']},timeoutMs);
-   await save(db,key,{signature,registeredAt:Date.now()});return {ready:true};
-  }catch(error){await save(db,key,{signature,registeredAt:0,retryAt:Date.now()+120000});throw error;}
+   await finish({signature,registeredAt:Date.now(),leaseUntil:0});return {ready:true};
+  }catch(error){const delay=Number((error as {retryAfterSeconds?:number}).retryAfterSeconds)||120;await finish({signature,registeredAt:0,leaseUntil:0,retryAt:Date.now()+Math.max(120,Math.min(86400,delay+2))*1000});throw error;}
  }
  async function config(request:Request){
   const owner=requestOwner(request);if(!owner)return json({error:'Требуется сессия.'},401);

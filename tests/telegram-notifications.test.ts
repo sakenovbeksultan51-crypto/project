@@ -32,6 +32,26 @@ test('webhook uses the canonical public site even when setup runs on a protected
  }finally{f.sql.close();}
 });
 
+test('only one webhook registration runs at once, even for a forced administrative retry',async()=>{
+ const f=fixture();let release!:()=>void,calls=0;const gate=new Promise<void>(r=>{release=r;});try{
+  const service=createTelegramService(f.db,{TELEGRAM_BOT_TOKEN:'private-token',TELEGRAM_WEBHOOK_SECRET:'secret'},async()=>{calls++;await gate;return Response.json({ok:true,result:true});});
+  const first=service.setupWebhook('https://public.test');
+  while(calls===0)await new Promise(r=>setImmediate(r));
+  assert.deepEqual(await service.setupWebhook('https://public.test',true),{ready:false});assert.equal(calls,1);
+  release();assert.deepEqual(await first,{ready:true});
+ }finally{release();f.sql.close();}
+});
+
+test('webhook setup preserves Telegram retry_after rather than retrying early',async()=>{
+ const f=fixture();let calls=0;try{
+  const now=Date.now(),service=createTelegramService(f.db,{TELEGRAM_BOT_TOKEN:'private-token',TELEGRAM_WEBHOOK_SECRET:'secret'},async()=>{calls++;return Response.json({ok:false,parameters:{retry_after:600}},{status:429});});
+  await assert.rejects(service.setupWebhook('https://public.test'));
+  const row=f.sql.prepare("SELECT payload FROM workspaces WHERE key LIKE 'tg:webhook:%'").get() as {payload:string},saved=JSON.parse(row.payload);
+  assert.ok(saved.retryAt>=now+600000);assert.equal(saved.leaseUntil,0);
+  assert.deepEqual(await service.setupWebhook('https://public.test'),{ready:false});assert.equal(calls,1);
+ }finally{f.sql.close();}
+});
+
 function fixture(token='private-token',status=200){
  const sql=new DatabaseSync(':memory:');sql.exec('CREATE TABLE workspaces (key TEXT PRIMARY KEY,payload TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,updated_at INTEGER NOT NULL)');
  const db={prepare(query:string){const statement=sql.prepare(query);let args:any[]=[];const p={bind(...values:any[]){args=values;return p;},async first(){return statement.get(...args)||null;},async all(){return {results:statement.all(...args)};},async run(){return {meta:{changes:Number(statement.run(...args).changes)}};}};return p;}} as unknown as D1Database;
