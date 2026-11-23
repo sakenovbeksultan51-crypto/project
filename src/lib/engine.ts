@@ -6,7 +6,7 @@ export const STATUS: Record<Status, string> = {free:'Свободен', occupied
 export const STATES: Status[] = ['free', 'occupied', 'dirty'];
 export const TRANSITION = [[0.97,0.03,0], [0,0.96,0.04], [0,0.015,0.985]];
 export const EMISSION: Record<Observation, number[]> = {person:[0.03,0.94,0.03], clear:[0.94,0.03,0.94], uncertain:[0.33,0.34,0.33]};
-export type Zone = {x:number;y:number;w:number;h:number};
+export type Zone = {x:number;y:number;w:number;h:number;kind?:'tabletop'|'seating'};
 export type Table = {id:number;capacity:number;zone:'main'|'window';status:Status;since:number;cleaningSince?:number|null;guests:number;servedAt:number|null;belief:number[];confidence:number|null;source:Source;roi:Zone|null;lastObservation:Observation|null;streak:number};
 export type Guest = {id:string;name:string;size:number;at:number;note:string};
 export type Log = {id:string;at:number;tableId:number;message:string;source:Source;kind:'state'|'service'|'info'};
@@ -40,10 +40,11 @@ export function changeStatus(state:AppState,id:number,status:Status,at:number,so
 }
 export function observe(state:AppState,id:number,observation:Observation,at:number):AppState{
   const s=structuredClone(state),t=s.tables.find(t=>t.id===id);if(!t||t.status==='cleaning')return state;
-  t.belief=hmmStep(t.belief,observation);t.confidence=Math.max(...t.belief);t.streak=t.lastObservation===observation?t.streak+1:1;t.lastObservation=observation;
+  t.belief=t.status==='free'&&observation!=='person'?[1,0,0]:hmmStep(t.belief,observation);t.confidence=Math.max(...t.belief);t.streak=t.lastObservation===observation?t.streak+1:1;t.lastObservation=observation;
   const next=STATES[t.belief.indexOf(t.confidence)];
   // A short occlusion cannot clear a table. A human confirms completed cleaning.
-  if(t.streak>=3&&t.confidence>0.86&&next!==t.status&&!(t.status==='dirty'&&next==='free')){
+  const supported=next==='occupied'?observation==='person':next==='dirty'&&t.status==='occupied'&&observation==='clear';
+  if(supported&&t.streak>=3&&t.confidence>0.86&&next!==t.status){
     const changed=changeStatus(s,id,next,at,'camera');const nt=changed.tables.find(t=>t.id===id)!;nt.confidence=t.confidence;nt.belief=t.belief;nt.lastObservation=observation;nt.streak=t.streak;return changed;
   }
   return s;
@@ -80,7 +81,7 @@ export function validateState(value:unknown):value is AppState{
   const str=(v:unknown,max=200)=>typeof v==='string'&&v.length<=max;
   const source=(v:unknown)=>['demo','manual','camera'].includes(String(v));
   if(s.schema!==1||!['demo','live'].includes(s.mode)||!Array.isArray(s.tables)||s.tables.length!==12||!Array.isArray(s.queue)||s.queue.length>100||!Array.isArray(s.logs)||s.logs.length>500||!Array.isArray(s.alerts)||s.alerts.length>200||!Array.isArray(s.visits)||s.visits.length>2000)return false;
-  if(!s.tables.every(t=>t&&Number.isInteger(t.id)&&t.id>=1&&t.id<=12&&Object.keys(STATUS).includes(t.status)&&finite(t.since)&&Number.isInteger(t.capacity)&&t.capacity>=1&&t.capacity<=20&&Number.isInteger(t.guests)&&t.guests>=0&&t.guests<=t.capacity&&['main','window'].includes(t.zone)&&source(t.source)&&(t.servedAt===null||finite(t.servedAt))&&(t.confidence===null||(finite(t.confidence)&&t.confidence>=0&&t.confidence<=1))&&Number.isInteger(t.streak)&&t.streak>=0&&(t.lastObservation===null||['person','clear','uncertain'].includes(t.lastObservation))&&Array.isArray(t.belief)&&t.belief.length===3&&t.belief.every(n=>finite(n)&&n>=0&&n<=1)&&Math.abs(t.belief.reduce((a,b)=>a+b)-1)<0.001&&(t.roi===null||(typeof t.roi==='object'&&['x','y','w','h'].every(k=>finite(t.roi![k as keyof Zone])&&t.roi![k as keyof Zone]>=0&&t.roi![k as keyof Zone]<=1)&&t.roi.x+t.roi.w<=1.001&&t.roi.y+t.roi.h<=1.001))))return false;
+  if(!s.tables.every(t=>t&&Number.isInteger(t.id)&&t.id>=1&&t.id<=12&&Object.keys(STATUS).includes(t.status)&&finite(t.since)&&Number.isInteger(t.capacity)&&t.capacity>=1&&t.capacity<=20&&Number.isInteger(t.guests)&&t.guests>=0&&t.guests<=t.capacity&&['main','window'].includes(t.zone)&&source(t.source)&&(t.servedAt===null||finite(t.servedAt))&&(t.confidence===null||(finite(t.confidence)&&t.confidence>=0&&t.confidence<=1))&&Number.isInteger(t.streak)&&t.streak>=0&&(t.lastObservation===null||['person','clear','uncertain'].includes(t.lastObservation))&&Array.isArray(t.belief)&&t.belief.length===3&&t.belief.every(n=>finite(n)&&n>=0&&n<=1)&&Math.abs(t.belief.reduce((a,b)=>a+b)-1)<0.001&&(t.roi===null||(typeof t.roi==='object'&&['x','y','w','h'].every(k=>finite(t.roi![k as 'x'|'y'|'w'|'h'])&&t.roi![k as 'x'|'y'|'w'|'h']>=0&&t.roi![k as 'x'|'y'|'w'|'h']<=1)&&(t.roi.kind===undefined||t.roi.kind==='tabletop'||t.roi.kind==='seating')&&t.roi.x+t.roi.w<=1.001&&t.roi.y+t.roi.h<=1.001))))return false;
   if(new Set(s.tables.map(t=>t.id)).size!==12)return false;
   if(!s.tables.every(t=>t.cleaningSince===undefined||t.cleaningSince===null||finite(t.cleaningSince)))return false;
   if(!s.settings||!Number.isFinite(s.settings.serviceMinutes)||s.settings.serviceMinutes<1||s.settings.serviceMinutes>60||!Number.isFinite(s.settings.cleaningMinutes)||s.settings.cleaningMinutes<1||s.settings.cleaningMinutes>60||!Number.isFinite(s.settings.confidence)||s.settings.confidence<0.2||s.settings.confidence>0.95||typeof s.settings.restaurant!=='string'||s.settings.restaurant.length>80)return false;

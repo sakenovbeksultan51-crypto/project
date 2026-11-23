@@ -4,4 +4,4 @@ export type VisionOptions={detail:boolean;tableDetail:boolean;frontTables:boolea
 export type VisionRequest=
  |{id:number;type:'init';origin:string}
  |{id:number;type:'detect';bitmap:ImageBitmap;options:VisionOptions};
-export type VisionResponse={id:number;detections?:Detection[];error?:string};
+export type VisionResponse={id:number;detections?:Detection[];bitmap?:ImageBitmap;error?:string};

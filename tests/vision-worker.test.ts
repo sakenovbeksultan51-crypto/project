@@ -55,6 +55,16 @@ test('disposing during frame capture closes the bitmap without sending it to a d
  assert.deepEqual(await pending,[]);assert.equal(closed,1);assert.equal(worker.messages.filter(m=>m.type==='detect').length,0);
 }));
 
+test('the displayed snapshot belongs to the analyzed frame and old snapshots are released',async()=>withWorker(async video=>{
+ let closed=0;globalThis.createImageBitmap=(async()=>({width:1920,height:1080,close(){closed++;}})) as typeof createImageBitmap;
+ const detector=await YoloDetector.load(async()=>new FakeWorker(new URL('http://localhost/worker'),{type:'module'}) as unknown as Worker),worker=FakeWorker.instances[0];
+ try{
+  Object.assign(video,{currentTime:4});const pending=detector.detect(video);await new Promise<void>(r=>setTimeout(r,0));const request=worker.messages.at(-1)!;assert.equal(request.type,'detect');if(request.type!=='detect')throw new Error('Expected frame');
+  Object.assign(video,{currentTime:7});worker.respond({id:request.id,detections:[],bitmap:request.bitmap});await pending;
+  assert.equal(detector.frameTime,4);assert.equal(detector.frame,request.bitmap);detector.clearFrame();assert.equal(closed,1);assert.equal(detector.frame,null);
+ }finally{detector.dispose();}
+}));
+
 test('worker failure rejects in-flight work and terminates instead of leaving analysis hanging',async()=>withWorker(async video=>{
  globalThis.createImageBitmap=(async()=>({width:3840,height:2160,close(){}})) as typeof createImageBitmap;
  const detector=await YoloDetector.load(async()=>new FakeWorker(new URL('http://localhost/worker'),{type:'module'}) as unknown as Worker),worker=FakeWorker.instances[0];const pending=detector.detect(video);

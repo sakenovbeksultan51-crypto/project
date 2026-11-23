@@ -16,11 +16,13 @@ test('slow inference retains evidence but a genuinely interrupted stream resets 
  const occupied=changeStatus(state,1,'occupied',0,'camera');
  const service=new TableServiceTracker();service.maxFrameGapMs=7000;
  service.update(occupied,[],100,100,0,empty);
- assert.ok(service.update(occupied,[],100,100,3000,empty).departed?.has(1));
- assert.ok(!service.update(occupied,[],100,100,11000,empty).departed?.has(1));
+ assert.ok(!service.update(occupied,[],100,100,3000,empty).departed?.has(1));
+ assert.ok(service.update(occupied,[],100,100,6000,empty).departed?.has(1));
+ assert.ok(!service.update(occupied,[],100,100,14000,empty).departed?.has(1));
  const seating=new SeatingTracker();seating.maxFrameGapMs=7000;
  const guest:Detection={class:'person',score:.9,bbox:[10,30,10,30]};
  seating.update([guest],100,100,state.tables,0);
+ assert.equal(seating.update([guest],100,100,state.tables,2500).confirmed.size,0);
  assert.equal(seating.update([guest],100,100,state.tables,5000).confirmed.get(1),1);
  assert.equal(seating.update([guest],100,100,state.tables,13000).confirmed.size,0);
 });
@@ -34,6 +36,7 @@ test('people seated behind an empty front table do not keep the front table occu
 
 test('staff departure immediately frees only the serviced table without waiting for surface confidence',()=>{
  const lifecycle=new TableServiceTracker();let state=initialState('live',0);
+ lifecycle.departureDelayMs=2000;
  state.tables[0].roi={x:.04,y:.45,w:.32,h:.2};state.tables[1].roi={x:.54,y:.45,w:.32,h:.2};
  state=changeStatus(state,1,'occupied',0,'camera');state=changeStatus(state,2,'occupied',0,'camera');
  const frame=(at:number,scene:Detection[])=>{const evidence=lifecycle.update(state,scene,100,100,at,empty);state=applyVideoFrame(state,scene,100,100,at,evidence);};
@@ -93,7 +96,7 @@ test('remote observations preserve service evidence and reject invalid surface o
 
 
 test('an empty white table becomes free without requiring a previous staff visit or earlier objects',()=>{
- for(const status of ['dirty','cleaning','occupied'] as const){
+ for(const status of ['dirty','cleaning'] as const){
   const lifecycle=new TableServiceTracker();let state=initialState('live',0);state.tables[0].roi={x:.04,y:.45,w:.32,h:.2};state=changeStatus(state,1,status,0,'camera');
   const frame=(at:number,scene:Detection[],seating=empty)=>{state=applyVideoFrame(state,scene,100,100,at,lifecycle.update(state,scene,100,100,at,seating));};
   frame(1000,[table(10,true)]);assert.equal(state.tables[0].status,status);

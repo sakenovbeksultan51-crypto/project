@@ -1,6 +1,6 @@
 import type * as Ort from 'onnxruntime-web';
 import * as ort from 'tableflow:ort-runtime';
-import type {Detection} from './vision';
+import {plausiblePerson,type Detection} from './vision';
 import type {VisionOptions} from './vision-worker-protocol';
 import {RESTAURANT_MODEL} from './restaurant-model';
 import {PEOPLE_MODEL} from './people-model';
@@ -71,8 +71,10 @@ export class YoloInference{
   }
   const found=mergePersonTiles(full,tiles.filter(d=>options.detail||d.class==='dining table'),width,height,options.max);
   // Both models use exactly the same prepared frame, without a second pixel readback.
-  const tables=options.frontTables||options.tableDetail?await this.infer(this.tables,this.fullInput,fullCrop,transform,width,height,RESTAURANT_MODEL.confidence,{60:'dining table'}):[];
-  const people=found.filter(d=>d.class==='person'),objects=found.filter(d=>d.class!=='person'&&d.class!=='dining table');
+  // Occupancy needs tabletop visibility on every analyzed frame. Alternating
+  // specialist scans with general furniture boxes breaks seating continuity.
+  const tables=await this.infer(this.tables,this.fullInput,fullCrop,transform,width,height,RESTAURANT_MODEL.confidence,{60:'dining table'});
+  const people=found.filter(d=>plausiblePerson(d,width,height)),objects=found.filter(d=>d.class!=='person'&&d.class!=='dining table');
   const specialized=tables.map(d=>({...d,tableModel:'restaurant' as const,...(options.frontTables?{surface:tabletopSurface(d,people,objects,this.framePixels,transform)}:{})}));
   const candidates=options.frontTables?specialized:[...specialized,...found.filter(d=>d.class==='dining table')];
   return [...people,...objects,...nms(candidates,.4,options.frontTables?RESTAURANT_MODEL.limit:12)];

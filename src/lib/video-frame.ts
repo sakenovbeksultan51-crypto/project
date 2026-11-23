@@ -5,6 +5,7 @@ export function applyVideoFrame(state:AppState,detections:Detection[],width:numb
  const counts=tracking?.confirmed||peopleByTable(detections,width,height,state.tables);let next=state;
  for(const table of state.tables){
   if(!table.roi)continue;
+  if(tracking?.observed&&!tracking.observed.has(table.id))continue;
   const count=counts.get(table.id)||0;
   if(tracking?.departed?.has(table.id)&&table.status==='occupied')next=changeStatus(next,table.id,'dirty',at,'camera');
   if(tracking?.servicing?.has(table.id)&&next.tables.find(t=>t.id===table.id)?.status==='dirty')next=changeStatus(next,table.id,'cleaning',at,'camera');
@@ -14,7 +15,7 @@ export function applyVideoFrame(state:AppState,detections:Detection[],width:numb
   // The tracker has already confirmed dwell over multiple frames. Apply that
   // confirmation immediately instead of requiring another three HMM frames.
   if(tracking&&count&&(table.status==='free'||table.status==='dirty'))next=changeStatus(next,table.id,'occupied',at,'camera',count);
-  else next=observe(next,table.id,count?'person':'clear',at);
+  else if(!tracking)next=observe(next,table.id,count?'person':'clear',at);
   const t=next.tables.find(t=>t.id===table.id)!;
   if(count&&t.status==='occupied'&&t.source==='camera')t.guests=Math.min(t.capacity,count);
  }
@@ -22,9 +23,9 @@ export function applyVideoFrame(state:AppState,detections:Detection[],width:numb
 }
 
 /** A new recording must not inherit a stale camera belief from the previous clip. */
-export function resetVideoZones(state:AppState,at:number):AppState{
+export function resetVideoZones(state:AppState,at:number,clearZones=true):AppState{
  const resetIds=state.tables.filter(t=>t.source==='camera').map(t=>t.id);
- return {...state,tables:state.tables.map(t=>({...t,roi:null,lastObservation:null,streak:0,...(t.source==='camera'?{status:'free' as const,since:at,guests:0,servedAt:null,confidence:null,belief:[1,0,0]}:{})})),alerts:state.alerts.map(a=>resetIds.includes(a.tableId)?{...a,done:true}:a)};
+ return {...state,tables:state.tables.map(t=>({...t,roi:clearZones?null:t.roi,lastObservation:null,streak:0,...(t.source==='camera'?{status:'free' as const,since:at,cleaningSince:null,guests:0,servedAt:null,confidence:null,belief:[1,0,0]}:{})})),alerts:state.alerts.map(a=>resetIds.includes(a.tableId)?{...a,done:true}:a)};
 }
 
 /** Find table zones again on later frames if the first frame had none. */

@@ -55,9 +55,10 @@ test('excluding T01 removes its zone without reassigning it to another table as 
  const tables=(dx:number)=>Array.from({length:4},(_,i)=>({class:'dining table',tableModel:'restaurant' as const,score:.8,bbox:[10+i*20+dx,20,8,5] as [number,number,number,number]}));
  for(const dx of [0,1,2,3,4]){s=tracker.update(s,tables(dx),100,100);assert.equal(s.tables[0].roi,null);assert.deepEqual(s.tables.filter(t=>t.roi).map(t=>t.id),[2,3,4]);}
 });
-test('trained table appears on its first accepted detection without a second discovery scan',async()=>{
+test('a low-confidence trained proposal needs another scan before it becomes a new table',async()=>{
  const {DynamicTableTracker}=await import('../src/lib/vision');const tracker=new DynamicTableTracker();let s=initialState('live');
  const first={class:'dining table',tableModel:'restaurant' as const,score:.8,bbox:[10,20,8,5] as [number,number,number,number]};
  s=tracker.update(s,[first],100,100);s=tracker.update(s,[first,{...first,score:.22,bbox:[60,20,8,5]}],100,100);
- assert.equal(s.tables.filter(t=>t.roi).length,2);
+ assert.equal(s.tables.filter(t=>t.roi).length,1);
+ s=tracker.update(s,[first,{...first,score:.22,bbox:[60,20,8,5]}],100,100);assert.equal(s.tables.filter(t=>t.roi).length,2);
 });
