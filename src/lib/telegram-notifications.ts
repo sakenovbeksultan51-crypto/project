@@ -29,9 +29,11 @@ export function notificationText(task:Task,now:number,repeat=false){
 }
 
 export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch=fetch){
+ const botToken=env.TELEGRAM_BOT_TOKEN?.trim();
  async function telegram(method:string,body:unknown){
-  if(!env.TELEGRAM_BOT_TOKEN)throw new Error('Telegram-бот ещё не подключён.');
-  const response=await fetcher(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(10000)});
+  if(!botToken)throw new Error('Telegram-бот ещё не подключён.');
+  const response=await fetcher(`https://api.telegram.org/bot${botToken}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(10000)});
+  if(response.status===401||response.status===404)throw new Error('Telegram не принял токен бота. Замените TELEGRAM_BOT_TOKEN в Vercel Production на токен из BotFather и выполните Redeploy.');
   const data=await response.json() as {ok:boolean;result:any};
   if(!response.ok||!data.ok)throw new Error(`Telegram временно недоступен (HTTP ${response.status}).`);
   return data.result;
@@ -42,7 +44,7 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
   const key=`tg:binding:${owner}`;
   try{
    const row=await read(db,key),binding=row?JSON.parse(row.payload) as Binding:null;
-   if(request.method==='GET')return json({configured:!!env.TELEGRAM_BOT_TOKEN,connected:!!binding,enabled:binding?.enabled??false,schedulerConfigured:!!env.NOTIFICATIONS_CRON_SECRET});
+   if(request.method==='GET')return json({configured:!!botToken,connected:!!binding,enabled:binding?.enabled??false,schedulerConfigured:!!env.NOTIFICATIONS_CRON_SECRET});
    const body=await request.json() as {action?:string};
    if(body.action==='disconnect'){await db.prepare('DELETE FROM workspaces WHERE key=?').bind(key).run();return json({ok:true});}
    if(body.action==='link'){
@@ -98,7 +100,7 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
   }catch{console.error('[telegram] webhook processing failed');return json({error:'Не удалось обработать событие.'},503);}
  }
  async function dispatch(now=Date.now()){
-  if(!env.TELEGRAM_BOT_TOKEN)return {sent:0,skipped:'bot_not_configured'};
+  if(!botToken)return {sent:0,skipped:'bot_not_configured'};
   const rows=await db.prepare("SELECT payload FROM workspaces WHERE key LIKE 'tg:binding:%' ORDER BY updated_at DESC LIMIT 50").all<{payload:string}>();
   let sent=0,failed=0;
   for(const row of rows.results){
