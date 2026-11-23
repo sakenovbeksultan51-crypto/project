@@ -2,7 +2,15 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {initialState,changeStatus,serve} from '../src/lib/engine';
-import {createTelegramService,pendingTask} from '../src/lib/telegram-notifications';
+import {createTelegramService,pendingTask,normalizeTelegramToken} from '../src/lib/telegram-notifications';
+
+test('a copied BotFather reply or quoted assignment yields its sole token; ambiguous values stay invalid',()=>{
+ const token='123456789:'+ 'a'.repeat(35),other='987654321:'+ 'b'.repeat(35);
+ assert.equal(normalizeTelegramToken(` TELEGRAM_BOT_TOKEN="${token}"\r\n`),token);
+ assert.equal(normalizeTelegramToken(`Use this token to access the HTTP API:\n${token}\nKeep your token secure.`),token);
+ assert.equal(normalizeTelegramToken(`${token}\n${other}`),`${token}\n${other}`);
+ assert.equal(normalizeTelegramToken(), '');
+});
 
 function fixture(token='private-token',status=200){
  const sql=new DatabaseSync(':memory:');sql.exec('CREATE TABLE workspaces (key TEXT PRIMARY KEY,payload TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,updated_at INTEGER NOT NULL)');

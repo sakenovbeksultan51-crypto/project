@@ -11,6 +11,10 @@ const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache
 const hash=async(text:string)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)))).map(n=>n.toString(16).padStart(2,'0')).join('');
 const read=async(db:DB,key:string)=>db.prepare('SELECT payload,revision FROM workspaces WHERE key=?').bind(key).first<Row>();
 const save=async(db:DB,key:string,value:unknown)=>db.prepare('INSERT INTO workspaces (key,payload,revision,updated_at) VALUES (?,?,1,?) ON CONFLICT(key) DO UPDATE SET payload=excluded.payload,revision=workspaces.revision+1,updated_at=excluded.updated_at').bind(key,JSON.stringify(value),Date.now()).run();
+export function normalizeTelegramToken(value?:string){
+ const text=value?.trim()||'',matches=[...text.matchAll(/\b\d{5,}:[A-Za-z0-9_-]{20,}\b/g)].map(m=>m[0]);
+ return [...new Set(matches)].length===1?matches[0]:text;
+}
 export function pendingTask(table:Table,state:AppState):Task|null{
  if(table.status==='occupied'&&!table.servedAt)return {tableId:table.id,kind:'service',since:table.since,dueAt:table.since+state.settings.serviceMinutes*60000};
  if(table.status==='dirty'||table.status==='cleaning'){
@@ -29,7 +33,7 @@ export function notificationText(task:Task,now:number,repeat=false){
 }
 
 export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch=env.TELEGRAM_FETCH??fetch){
- const botToken=env.TELEGRAM_BOT_TOKEN?.trim();
+ const botToken=normalizeTelegramToken(env.TELEGRAM_BOT_TOKEN);
  async function telegram(method:string,body:unknown){
   if(!botToken)throw new Error('Telegram-бот ещё не подключён.');
   let response:Response;
@@ -49,6 +53,12 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
    const row=await read(db,key),binding=row?JSON.parse(row.payload) as Binding:null;
    if(request.method==='GET')return json({configured:!!botToken,connected:!!binding,enabled:binding?.enabled??false,schedulerConfigured:!!env.NOTIFICATIONS_CRON_SECRET});
    const body=await request.json() as {action?:string};
+   if(body.action==='diagnostics'){
+    if(!env.NOTIFICATIONS_CRON_SECRET||request.headers.get('authorization')!==`Bearer ${env.NOTIFICATIONS_CRON_SECRET}`)return json({error:'Нет доступа.'},401);
+    const started=Date.now();let reachability:unknown;
+    try{const r=await fetcher('https://api.telegram.org/bot0:invalid/getMe',{signal:AbortSignal.timeout(5000)});reachability={status:r.status,ms:Date.now()-started};}catch(e){reachability={failed:true,ms:Date.now()-started};}
+    return json({credentialFormatValid:/^\d{5,}:[A-Za-z0-9_-]{20,}$/.test(botToken),rawChars:env.TELEGRAM_BOT_TOKEN?.length||0,tokenChars:botToken.length,transport:env.TELEGRAM_FETCH?'native-ipv4':'fetch',version:process.env.VERCEL_GIT_COMMIT_SHA,reachability});
+   }
    if(body.action==='check'){const me=await telegram('getMe',{});return json({ok:true,bot:me.username});}
    if(body.action==='disconnect'){await db.prepare('DELETE FROM workspaces WHERE key=?').bind(key).run();return json({ok:true});}
    if(body.action==='link'){
