@@ -1,0 +1,8 @@
+{
+  "package": "onnxruntime-web",
+  "version": "1.20.1",
+  "runtime_source": "node_modules/onnxruntime-web/dist/ort.wasm.min.mjs",
+  "runtime_sha256": "f53ed4792e758e7232f779d479eb8931b97ff3ab2e3b9a33ee00d1251ffdaad6",
+  "license": "MIT",
+  "note": "Official ES module served unchanged to avoid page-only development client injection in a Web Worker; keep it in sync with the companion WASM assets."
+}

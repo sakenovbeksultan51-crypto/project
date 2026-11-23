@@ -1,0 +1,20 @@
+{
+  "model": "YOLOv8n",
+  "weights": "pretrained",
+  "onnx_sha256": "ebc8da56ecddf5dd35371f9e427ba518d331ed2459143a392011b8e24bceb9eb",
+  "license": "AGPL-3.0",
+  "source": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt",
+  "training_report": "precision-report.json",
+  "previous_training_report": "training-report.json",
+  "default_confidence": 0.45,
+  "default_mode": "full-frame",
+  "postprocessing": "full-frame anchors, internal-tile edge filtering, contained head/torso suppression",
+  "table_detector": {
+    "weights": "restaurant-tables.onnx",
+    "sha256": "0d9590c276d5077a72ee60b5d378b6833d0abbfeeba9b5a4589773e2e3e2d73f",
+    "report": "restaurant-report.json",
+    "confidence": 0.2,
+    "scope": "Four focus tabletops in the supplied user video; separate model, original person.onnx unchanged",
+    "license": "AGPL-3.0"
+  }
+}

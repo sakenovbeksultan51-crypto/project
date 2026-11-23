@@ -1,0 +1,20 @@
+import * as tf from '@tensorflow/tfjs';
+import coco from '@tensorflow-models/coco-ssd';
+import fs from 'node:fs';
+import path from 'node:path';
+import jpeg from 'jpeg-js';
+import assert from 'node:assert/strict';
+const input=process.argv[2];if(!input)throw new Error('Usage: node scripts/verify-model.mjs image.jpg');
+await tf.setBackend('cpu');await tf.ready();
+const modelDir=path.resolve(process.argv[3]||'public/models/coco-ssd');
+const originalFetch=tf.env().platform.fetch;
+tf.env().platform.fetch=async url=>{const file=path.basename(new URL(String(url)).pathname);return new Response(fs.readFileSync(path.join(modelDir,file)));};
+const detector=await coco.load({base:'lite_mobilenet_v2',modelUrl:'https://local-model.test/model.json'});
+const decoded=jpeg.decode(fs.readFileSync(input),{useTArray:true});
+const rgb=new Int32Array(decoded.width*decoded.height*3);for(let i=0,j=0;i<decoded.data.length;i+=4){rgb[j++]=decoded.data[i];rgb[j++]=decoded.data[i+1];rgb[j++]=decoded.data[i+2];}
+const frame=tf.tensor3d(rgb,[decoded.height,decoded.width,3],'int32');
+const started=performance.now();const found=await detector.detect(frame,30,Number(process.env.COCO_THRESHOLD||0.55));
+const people=found.filter(d=>d.class==='person');assert.ok(people.length>=2,'Must recognize at least two real people in reference image');
+console.log(JSON.stringify({image:{width:decoded.width,height:decoded.height},people,elapsedMs:Math.round(performance.now()-started)},null,2));
+const empty=tf.zeros([320,320,3],'int32');const none=await detector.detect(empty,30,0.55);assert.equal(none.filter(d=>d.class==='person').length,0);console.log('Blank frame: no people. PASS');
+frame.dispose();empty.dispose();detector.dispose();tf.env().platform.fetch=originalFetch;

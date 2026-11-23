@@ -1,0 +1,5 @@
+{
+ "used_in_precision_experiment": [{"name":"COCO2017 subset","download":"https://github.com/ultralytics/assets/releases/download/v0.0.0/coco2017val.zip","documentation":"https://docs.ultralytics.com/datasets/detect/coco/","train_images":768,"train_with_people":512,"train_without_people":256,"validation_images":192,"note":"Disjoint subset split. Not an official COCO benchmark. Furniture context does not certify seated poses."}],
+ "suggested_not_used": [{"name":"CrowdHuman","url":"https://www.crowdhuman.org/download","purpose":"Crowds and mutual occlusion"},{"name":"WiderPerson","url":"http://www.cbsr.ia.ac.cn/users/sfzhang/WiderPerson/","purpose":"Diverse pedestrian scenes"}],
+ "target_camera_dataset":"Not supplied. Needed to measure false positives and seated-person recall for this exact camera."
+}

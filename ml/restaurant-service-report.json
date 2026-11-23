@@ -1,0 +1,374 @@
+{
+  "frontId": 4,
+  "frames": [
+    {
+      "second": 0,
+      "frontId": 4,
+      "status": "free",
+      "guests": 1,
+      "staff": [],
+      "surface": {
+        "clear": false,
+        "visible": false,
+        "objects": 0,
+        "darkFraction": 0.13257575757575757
+      }
+    },
+    {
+      "second": 2,
+      "frontId": 4,
+      "status": "free",
+      "guests": 0,
+      "staff": [],
+      "surface": {
+        "clear": false,
+        "visible": true,
+        "objects": 0,
+        "darkFraction": 0.12878787878787878
+      }
+    },
+    {
+      "second": 4,
+      "frontId": 4,
+      "status": "occupied",
+      "guests": 1,
+      "staff": [],
+      "surface": {
+        "clear": false,
+        "visible": false,
+        "objects": 0,
+        "darkFraction": 0.14393939393939395
+      }
+    },
+    {
+      "second": 60,
+      "frontId": 4,
+      "status": "occupied",
+      "guests": 1,
+      "staff": [],
+      "surface": {
+        "clear": false,
+        "visible": false,
+        "objects": 0,
+        "darkFraction": 0
+      }
+    },
+    {
+      "second": 62,
+      "frontId": 4,
+      "status": "occupied",
+      "guests": 1,
+      "staff": [],
+      "surface": {
+        "clear": false,
+        "visible": false,
+        "objects": 0,
+        "darkFraction": 0
+      }
+    },
+    {
+      "second": 64,
+      "frontId": 4,
+      "status": "occupied",
+      "guests": 1,
+      "staff": [],
+      "surface": {
+        "clear": false,
+        "visible": false,
+        "objects": 0,
+        "darkFraction": 0
+      }
+    },
+    {
+      "second": 66,
+      "frontId": 4,
+      "status": "occupied",
+      "guests": 1,
+      "staff": [],
+      "surface": {
+        "clear": false,
+        "visible": false,
+        "objects": 0,
+        "darkFraction": 0.056818181818181816
+      }
+    },
+    {
+      "second": 68,
+      "frontId": 4,
+      "status": "occupied",
+      "guests": 1,
+      "staff": [],
+      "surface": {
+        "clear": false,
+        "visible": false,
+        "objects": 0,
+        "darkFraction": 0.022727272727272728
+      }
+    },
+    {
+      "second": 70,
+      "frontId": 4,
+      "status": "occupied",
+      "guests": 0,
+      "staff": [],
+      "surface": {
+        "clear": false,
+        "visible": true,
+        "objects": 0,
+        "darkFraction": 0.026515151515151516
+      }
+    },
+    {
+      "second": 72,
+      "frontId": 4,
+      "status": "dirty",
+      "guests": 0,
+      "staff": [],
+      "surface": {
+        "clear": false,
+        "visible": true,
+        "objects": 0,
+        "darkFraction": 0.056818181818181816
+      }
+    },
+    {
+      "second": 74,
+      "frontId": 4,
+      "status": "dirty",
+      "guests": 0,
+      "staff": [],
+      "surface": {
+        "clear": false,
+        "visible": true,
+        "objects": 0,
+        "darkFraction": 0.06439393939393939
+      }
+    },
+    {
+      "second": 76,
+      "frontId": 4,
+      "status": "dirty",
+      "guests": 0,
+      "staff": [],
+      "surface": {
+        "clear": false,
+        "visible": true,
+        "objects": 0,
+        "darkFraction": 0.041666666666666664
+      }
+    },
+    {
+      "second": 78,
+      "frontId": 4,
+      "status": "dirty",
+      "guests": 0,
+      "staff": [],
+      "surface": {
+        "clear": false,
+        "visible": true,
+        "objects": 0,
+        "darkFraction": 0.03787878787878788
+      }
+    },
+    {
+      "second": 80,
+      "frontId": 4,
+      "status": "dirty",
+      "guests": 0,
+      "staff": [],
+      "surface": {
+        "clear": false,
+        "visible": true,
+        "objects": 0,
+        "darkFraction": 0.041666666666666664
+      }
+    },
+    {
+      "second": 82,
+      "frontId": 4,
+      "status": "dirty",
+      "guests": 0,
+      "staff": [],
+      "surface": {
+        "clear": false,
+        "visible": true,
+        "objects": 0,
+        "darkFraction": 0.03787878787878788
+      }
+    },
+    {
+      "second": 84,
+      "frontId": 4,
+      "status": "dirty",
+      "guests": 0,
+      "staff": [],
+      "surface": {
+        "clear": false,
+        "visible": true,
+        "objects": 0,
+        "darkFraction": 0.03409090909090909
+      }
+    },
+    {
+      "second": 86,
+      "frontId": 4,
+      "status": "dirty",
+      "guests": 0,
+      "staff": [
+        [
+          873.7051849365234,
+          774.7464294433594,
+          385.1040344238281,
+          878.6475219726562
+        ]
+      ],
+      "surface": {
+        "clear": false,
+        "visible": true,
+        "objects": 0,
+        "darkFraction": 0.030303030303030304
+      }
+    },
+    {
+      "second": 88,
+      "frontId": 4,
+      "status": "cleaning",
+      "guests": 0,
+      "staff": [
+        [
+          909.8666381835938,
+          788.7138977050781,
+          345.8404541015625,
+          930.4828491210938
+        ]
+      ],
+      "surface": {
+        "clear": false,
+        "visible": false,
+        "objects": 0,
+        "darkFraction": 0
+      }
+    },
+    {
+      "second": 90,
+      "frontId": 4,
+      "status": "free",
+      "guests": 0,
+      "staff": [],
+      "surface": {
+        "clear": true,
+        "visible": true,
+        "objects": 0,
+        "darkFraction": 0
+      }
+    },
+    {
+      "second": 92,
+      "frontId": 4,
+      "status": "free",
+      "guests": 0,
+      "staff": [],
+      "surface": {
+        "clear": true,
+        "visible": true,
+        "objects": 0,
+        "darkFraction": 0
+      }
+    },
+    {
+      "second": 94,
+      "frontId": 4,
+      "status": "free",
+      "guests": 0,
+      "staff": [],
+      "surface": {
+        "clear": true,
+        "visible": true,
+        "objects": 0,
+        "darkFraction": 0
+      }
+    },
+    {
+      "second": 96,
+      "frontId": 4,
+      "status": "free",
+      "guests": 0,
+      "staff": [],
+      "surface": {
+        "clear": true,
+        "visible": true,
+        "objects": 0,
+        "darkFraction": 0
+      }
+    },
+    {
+      "second": 98,
+      "frontId": 4,
+      "status": "free",
+      "guests": 0,
+      "staff": [],
+      "surface": {
+        "clear": true,
+        "visible": true,
+        "objects": 0,
+        "darkFraction": 0
+      }
+    }
+  ],
+  "whiteWithoutStaff": [
+    {
+      "second": 90,
+      "status": "dirty"
+    },
+    {
+      "second": 92,
+      "status": "free"
+    },
+    {
+      "second": 94,
+      "status": "free"
+    },
+    {
+      "second": 96,
+      "status": "free"
+    },
+    {
+      "second": 98,
+      "status": "free"
+    }
+  ],
+  "logs": [
+    {
+      "id": "dc752ab7-6347-452a-8724-fbf1540d06f2",
+      "at": 90000,
+      "tableId": 4,
+      "message": "Уборка → Свободен",
+      "source": "camera",
+      "kind": "state"
+    },
+    {
+      "id": "ec9942b6-430c-454a-9132-bf161bdee638",
+      "at": 88000,
+      "tableId": 4,
+      "message": "Нужна уборка → Уборка",
+      "source": "camera",
+      "kind": "state"
+    },
+    {
+      "id": "52d6dd38-b0d6-4764-8544-256701ce84f2",
+      "at": 72000,
+      "tableId": 4,
+      "message": "Занят → Нужна уборка",
+      "source": "camera",
+      "kind": "state"
+    },
+    {
+      "id": "03817e1c-25bf-414a-be45-cf18fb96460f",
+      "at": 4000,
+      "tableId": 4,
+      "message": "Свободен → Занят",
+      "source": "camera",
+      "kind": "state"
+    }
+  ]
+}

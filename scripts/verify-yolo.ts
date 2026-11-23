@@ -1,0 +1,10 @@
+import * as ort from 'onnxruntime-web';
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import {decodeYolo} from '../src/lib/yolo-output';
+ort.env.wasm.numThreads=1;ort.env.wasm.wasmPaths=path.resolve('node_modules/onnxruntime-web/dist')+'/';
+const session=await ort.InferenceSession.create(new Uint8Array(fs.readFileSync('public/models/yolo/person.onnx')),{executionProviders:['wasm']});
+const ref=JSON.parse(fs.readFileSync('/workspace/work/training/reference.json','utf8'));const bytes=fs.readFileSync('/workspace/work/training/reference.f32');const pixels=new Float32Array(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength));
+const result=await session.run({images:new ort.Tensor('float32',pixels,[1,3,640,640])});const output=result[session.outputNames[0]];
+const detections=decodeYolo(output.data as Float32Array,output.dims[1],output.dims[2],ref.scale,ref.px,ref.py,0,0,ref.w,ref.h,0.3);assert.ok(detections.filter(d=>d.class==='person').length>=3);console.log(JSON.stringify({shape:output.dims,people:detections.filter(d=>d.class==='person')},null,2));await session.release();

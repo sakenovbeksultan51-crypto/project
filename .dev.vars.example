@@ -1,0 +1,10 @@
+# Copy to .dev.vars (server-only, ignored by Git), then restart npm run dev.
+# Local model: install Ollama from https://ollama.com/download/windows
+# Run: ollama pull qwen2.5:3b
+ASSISTANT_PROVIDER=ollama
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=qwen2.5:3b
+
+# Alternatively, set ASSISTANT_PROVIDER=openai and fill both values below.
+# OPENAI_API_KEY=your-own-api-key
+# OPENAI_MODEL=your-available-model-id

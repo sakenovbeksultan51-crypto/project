@@ -1,0 +1,262 @@
+{
+  "note": "All 11 held-out two-person furniture-context scenes; pretrained weights held constant. PyTorch crop inference approximates browser preprocessing. Not a test of the user camera or a whole-dataset score.",
+  "old_detail": {
+    "true_positives": 20,
+    "false_positives": 28,
+    "false_negatives": 2
+  },
+  "new_balanced": {
+    "true_positives": 19,
+    "false_positives": 1,
+    "false_negatives": 3
+  },
+  "new_detail": {
+    "true_positives": 19,
+    "false_positives": 1,
+    "false_negatives": 3
+  },
+  "scenes": [
+    {
+      "file": "000000018150.jpg",
+      "ground_truth": 2,
+      "old_detail": {
+        "count": 5,
+        "true_positives": 2,
+        "false_positives": 3,
+        "false_negatives": 0
+      },
+      "new_balanced": {
+        "count": 2,
+        "true_positives": 2,
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "new_detail": {
+        "count": 2,
+        "true_positives": 2,
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    },
+    {
+      "file": "000000048396.jpg",
+      "ground_truth": 2,
+      "old_detail": {
+        "count": 5,
+        "true_positives": 2,
+        "false_positives": 3,
+        "false_negatives": 0
+      },
+      "new_balanced": {
+        "count": 2,
+        "true_positives": 2,
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "new_detail": {
+        "count": 2,
+        "true_positives": 2,
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    },
+    {
+      "file": "000000080932.jpg",
+      "ground_truth": 2,
+      "old_detail": {
+        "count": 5,
+        "true_positives": 2,
+        "false_positives": 3,
+        "false_negatives": 0
+      },
+      "new_balanced": {
+        "count": 2,
+        "true_positives": 2,
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "new_detail": {
+        "count": 2,
+        "true_positives": 2,
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    },
+    {
+      "file": "000000137246.jpg",
+      "ground_truth": 2,
+      "old_detail": {
+        "count": 4,
+        "true_positives": 2,
+        "false_positives": 2,
+        "false_negatives": 0
+      },
+      "new_balanced": {
+        "count": 2,
+        "true_positives": 2,
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "new_detail": {
+        "count": 2,
+        "true_positives": 2,
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    },
+    {
+      "file": "000000292082.jpg",
+      "ground_truth": 2,
+      "old_detail": {
+        "count": 4,
+        "true_positives": 2,
+        "false_positives": 2,
+        "false_negatives": 0
+      },
+      "new_balanced": {
+        "count": 2,
+        "true_positives": 2,
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "new_detail": {
+        "count": 2,
+        "true_positives": 2,
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    },
+    {
+      "file": "000000450202.jpg",
+      "ground_truth": 2,
+      "old_detail": {
+        "count": 1,
+        "true_positives": 1,
+        "false_positives": 0,
+        "false_negatives": 1
+      },
+      "new_balanced": {
+        "count": 1,
+        "true_positives": 1,
+        "false_positives": 0,
+        "false_negatives": 1
+      },
+      "new_detail": {
+        "count": 1,
+        "true_positives": 1,
+        "false_positives": 0,
+        "false_negatives": 1
+      }
+    },
+    {
+      "file": "000000482436.jpg",
+      "ground_truth": 2,
+      "old_detail": {
+        "count": 4,
+        "true_positives": 2,
+        "false_positives": 2,
+        "false_negatives": 0
+      },
+      "new_balanced": {
+        "count": 2,
+        "true_positives": 1,
+        "false_positives": 1,
+        "false_negatives": 1
+      },
+      "new_detail": {
+        "count": 2,
+        "true_positives": 1,
+        "false_positives": 1,
+        "false_negatives": 1
+      }
+    },
+    {
+      "file": "000000504074.jpg",
+      "ground_truth": 2,
+      "old_detail": {
+        "count": 5,
+        "true_positives": 2,
+        "false_positives": 3,
+        "false_negatives": 0
+      },
+      "new_balanced": {
+        "count": 2,
+        "true_positives": 2,
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "new_detail": {
+        "count": 2,
+        "true_positives": 2,
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    },
+    {
+      "file": "000000508730.jpg",
+      "ground_truth": 2,
+      "old_detail": {
+        "count": 6,
+        "true_positives": 2,
+        "false_positives": 4,
+        "false_negatives": 0
+      },
+      "new_balanced": {
+        "count": 2,
+        "true_positives": 2,
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "new_detail": {
+        "count": 2,
+        "true_positives": 2,
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    },
+    {
+      "file": "000000547854.jpg",
+      "ground_truth": 2,
+      "old_detail": {
+        "count": 3,
+        "true_positives": 1,
+        "false_positives": 2,
+        "false_negatives": 1
+      },
+      "new_balanced": {
+        "count": 1,
+        "true_positives": 1,
+        "false_positives": 0,
+        "false_negatives": 1
+      },
+      "new_detail": {
+        "count": 1,
+        "true_positives": 1,
+        "false_positives": 0,
+        "false_negatives": 1
+      }
+    },
+    {
+      "file": "000000563267.jpg",
+      "ground_truth": 2,
+      "old_detail": {
+        "count": 6,
+        "true_positives": 2,
+        "false_positives": 4,
+        "false_negatives": 0
+      },
+      "new_balanced": {
+        "count": 2,
+        "true_positives": 2,
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "new_detail": {
+        "count": 2,
+        "true_positives": 2,
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    }
+  ]
+}
