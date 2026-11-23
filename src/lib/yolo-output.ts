@@ -1,8 +1,22 @@
 import {Detection} from './vision';
-export function nms(found:Detection[],iou=0.45,limit=100):Detection[]{
+/** Collapse a head/torso fragment only when its head aligns with a larger body.
+ * Containment alone would erase a second person standing behind the first. */
+export function removePersonFragments(found:Detection[]):Detection[]{
+ return found.filter(d=>{
+  if(d.class!=='person')return true;
+  const [x,y,w,h]=d.bbox,area=w*h;
+  return !found.some(a=>{
+   if(a===d||a.class!=='person')return false;
+   const [ax,ay,aw,ah]=a.bbox;if(aw*ah<area*1.25)return false;
+   const intersection=Math.max(0,Math.min(x+w,ax+aw)-Math.max(x,ax))*Math.max(0,Math.min(y+h,ay+ah)-Math.max(y,ay));
+   return intersection/area>.85&&Math.abs(x+w/2-ax-aw/2)<aw*.25&&Math.abs(y-ay)<Math.min(h,ah)*.15;
+  });
+ });
+}
+export function nms(found:Detection[],iou=0.45,limit=100,personIou=iou):Detection[]{
  const out:Detection[]=[];
  for(const d of [...found].sort((a,b)=>b.score-a.score)){
-  if(out.some(p=>{if(p.class!==d.class)return false;const [x,y,w,h]=d.bbox,[px,py,pw,ph]=p.bbox;const overlap=Math.max(0,Math.min(x+w,px+pw)-Math.max(x,px))*Math.max(0,Math.min(y+h,py+ph)-Math.max(y,py));return overlap/(w*h+pw*ph-overlap)>iou;}))continue;
+  if(out.some(p=>{if(p.class!==d.class)return false;const [x,y,w,h]=d.bbox,[px,py,pw,ph]=p.bbox;const overlap=Math.max(0,Math.min(x+w,px+pw)-Math.max(x,px))*Math.max(0,Math.min(y+h,py+ph)-Math.max(y,py));return overlap/(w*h+pw*ph-overlap)>(d.class==='person'?personIou:iou);}))continue;
   out.push(d);if(out.length>=limit)break;
  }return out;
 }
@@ -15,12 +29,12 @@ export function decodeYolo(data:Float32Array,channels:number,count:number,scale:
   const left=Math.max(0,(cx-w/2-padX)/scale)+offsetX,top=Math.max(0,(cy-h/2-padY)/scale)+offsetY;
   const right=Math.min(width,(cx+w/2-padX)/scale+offsetX),bottom=Math.min(height,(cy+h/2-padY)/scale+offsetY);
   if(right>left&&bottom>top)found.push({bbox:[left,top,right-left,bottom-top],class:labels?labels[cls]:cls===0?'person':'dining table',score});
- }return nms(found);
+ }return nms(removePersonFragments(found),.45,100,.6);
 }
 
 /** Full-frame boxes anchor nearby people; tiles only supplement small, complete figures. */
 export function mergePersonTiles(full:Detection[],tiles:Detection[],width:number,height:number,limit=100):Detection[]{
- const anchors=nms(full,0.45,limit),extra:Detection[]=[];
+ const anchors=nms(full,0.45,limit,.6),extra:Detection[]=[];
  for(const d of tiles){
   if(d.class==='dining table'){if(d.score>=0.3)extra.push(d);continue;}
   if(d.class!=='person')continue;
@@ -36,5 +50,5 @@ export function mergePersonTiles(full:Detection[],tiles:Detection[],width:number
   });
   if(!duplicate)extra.push(d);
  }
- return nms([...anchors,...extra],0.45,limit);
+ return nms([...anchors,...extra],0.45,limit,.6);
 }

@@ -1,6 +1,15 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {decodeYolo,nms} from '../src/lib/yolo-output';
+import {decodeYolo,nms,removePersonFragments} from '../src/lib/yolo-output';
+test('overlapping people with different head positions survive; repeated torso fragments do not',()=>{
+ const persons=[
+  {class:'person',score:.76,bbox:[164,459,195,360] as [number,number,number,number]},
+  {class:'person',score:.74,bbox:[170,420,134,118] as [number,number,number,number]},
+  {class:'person',score:.6,bbox:[165,459,197,190] as [number,number,number,number]},
+ ];
+ const result=removePersonFragments(persons);assert.equal(result.length,2);assert.ok(result.includes(persons[0]));assert.ok(result.includes(persons[1]));
+ assert.equal(nms([{class:'person',score:.8,bbox:[0,0,100,200]},{class:'person',score:.7,bbox:[20,20,100,200]}],.45,100,.6).length,2);
+});
 test('YOLO decoding maps letterboxed crop coordinates back to the original frame',()=>{
  const data=new Float32Array(84);data[0]=320;data[1]=320;data[2]=100;data[3]=200;data[4]=0.8;
  const result=decodeYolo(data,84,1,2,0,0,50,20,1000,1000,0.3);assert.equal(result.length,1);assert.deepEqual(result[0].bbox,[185,130,50,100]);

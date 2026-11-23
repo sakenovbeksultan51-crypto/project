@@ -11,6 +11,20 @@ const table=(x:number,clear:boolean):Detection=>({class:'dining table',tableMode
 const staff:Detection={class:'person',role:'staff',score:.9,bbox:[10,20,10,50]};
 const empty={confirmed:new Map<number,number>(),present:new Map<number,number>()};
 
+test('slow inference retains evidence but a genuinely interrupted stream resets it',()=>{
+ const state=initialState('live',0);state.tables[0].roi={x:.04,y:.45,w:.32,h:.2};
+ const occupied=changeStatus(state,1,'occupied',0,'camera');
+ const service=new TableServiceTracker();service.maxFrameGapMs=7000;
+ service.update(occupied,[],100,100,0,empty);
+ assert.ok(service.update(occupied,[],100,100,3000,empty).departed?.has(1));
+ assert.ok(!service.update(occupied,[],100,100,11000,empty).departed?.has(1));
+ const seating=new SeatingTracker();seating.maxFrameGapMs=7000;
+ const guest:Detection={class:'person',score:.9,bbox:[10,30,10,30]};
+ seating.update([guest],100,100,state.tables,0);
+ assert.equal(seating.update([guest],100,100,state.tables,5000).confirmed.get(1),1);
+ assert.equal(seating.update([guest],100,100,state.tables,13000).confirmed.size,0);
+});
+
 test('people seated behind an empty front table do not keep the front table occupied',()=>{
  const state=initialState('live');state.tables[0].roi={x:.25,y:.55,w:.25,h:.25};
  const behind:Detection={class:'person',score:.9,bbox:[24,35,12,34]};

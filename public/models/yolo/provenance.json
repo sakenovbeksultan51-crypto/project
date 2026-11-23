@@ -1,14 +1,14 @@
 {
   "model": "YOLO11s",
   "weights": "coco128-finetuned",
-  "onnx_sha256": "b37110a9b16439f722237bbce87fb018df5447fd4360c4c6b85e5c71efbf9830",
+  "onnx_sha256": "35c2504c7686817b2c710838c36f67537599631c67293138b8e80ccfa06bccfc",
   "license": "AGPL-3.0",
   "source": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11s.pt",
   "training_report": "scene-upgrade-report.json",
   "previous_training_report": "training-report.json",
   "default_confidence": 0.3,
-  "default_mode": "all tables; full-frame people with optional tiles",
-  "postprocessing": "full-frame anchors, internal-tile edge filtering, contained head/torso suppression",
+  "default_mode": "all tables; full-frame people at 960px, optional fast mode at 640px",
+  "postprocessing": "person IoU 0.6; aligned contained head/torso suppression; table IoU unchanged",
   "table_detector": {
     "weights": "restaurant-tables.onnx",
     "sha256": "0d9590c276d5077a72ee60b5d378b6833d0abbfeeba9b5a4589773e2e3e2d73f",
@@ -25,5 +25,6 @@
   },
   "onnx_file": "people-upgraded.onnx",
   "video_comparison_report": "scene-video-comparison.json",
-  "rejected_table_experiment": "all-tables-report.json"
+  "rejected_table_experiment": "all-tables-report.json",
+  "eight_people_report": "eight-people-report.json"
 }

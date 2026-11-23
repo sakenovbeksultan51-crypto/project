@@ -20,7 +20,7 @@ a=evaluate(base,'val');b=evaluate(candidate,'val')
 accept=b['map50_95']>=a['map50_95'] and all(b['classes'].get(cls,{}).get('ap50',0)>=a['classes'].get(cls,{}).get('ap50',0)-.02 for cls in ['person','dining table'])
 selected=candidate if accept else base
 report={'model':'YOLO11s','selected':'coco128-finetuned' if accept else 'pretrained','selection_rule':'Validation mAP50-95 must not decrease and person/table AP50 may decrease at most 0.02. Video counts do not select the model.','dataset':json.loads((OUT/'manifest.json').read_text()),'pretrained_validation':a,'candidate_validation':b,'selected_test':evaluate(selected,'test'),'limitations':['COCO128 may overlap model pretraining; these metrics are regression checks, not independent benchmark scores.','User restaurant video is not used for this fine-tuning. Existing separate tabletop model was previously trained on this video.','Frame detection counts are not measured precision/recall; restaurant annotations and more independent videos are needed.','No 100 percent detection claim.']}
-export=selected.export(format='onnx',imgsz=640,opset=17,simplify=False,dynamic=False,device='cpu')
+export=selected.export(format='onnx',imgsz=640,opset=17,simplify=False,dynamic=True,device='cpu')
 dest=ROOT/'public/models/yolo/people-upgraded.onnx';shutil.copyfile(export,dest);report['onnx_sha256']=hashlib.sha256(dest.read_bytes()).hexdigest();report['onnx_bytes']=dest.stat().st_size
 report['video_predictions']={}
 for second in [0,25,70,99]:

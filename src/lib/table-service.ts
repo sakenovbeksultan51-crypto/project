@@ -7,12 +7,13 @@ type Memory={emptySince:number|null;staffSince:number|null;staffFrames:number;st
 
 /** Staff departure ends cleaning immediately; an empty white tabletop also frees a table. */
 export class TableServiceTracker{
+ maxFrameGapMs=2500;
  private memory=new Map<number,Memory>();
  private lastAt:number|null=null;
  clear(){this.memory.clear();this.lastAt=null;}
  pause(){this.lastAt=null;for(const m of this.memory.values()){m.emptySince=null;m.staffSince=null;m.staffFrames=0;m.clearFrames=0;}}
  update(state:AppState,detections:Detection[],width:number,height:number,at:number,seating:SeatingEvidence):VideoEvidence{
-  if(this.lastAt!==null&&(at<this.lastAt||at-this.lastAt>2500))this.pause();this.lastAt=at;
+  if(this.lastAt!==null&&(at<this.lastAt||at-this.lastAt>this.maxFrameGapMs))this.pause();this.lastAt=at;
   const departed=new Set<number>(),servicing=new Set<number>(),cleaned=new Set<number>(),staffNear=new Set<number>();
   for(const person of detections.filter(d=>d.class==='person'&&d.role==='staff')){
    const [x,y,w,h]=person.bbox,px=(x+w/2)/width,py=(y+h*.75)/height;

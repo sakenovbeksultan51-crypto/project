@@ -14,6 +14,7 @@ export class YoloInference{
  private context=this.canvas.getContext('2d',{willReadFrequently:true})!;
  private fullInput=new Float32Array(3*640*640);
  private tileInput=new Float32Array(3*640*640);
+ private detailInput:Float32Array|null=null;
  private framePixels!:Uint8ClampedArray;
  constructor(private people:Ort.InferenceSession,private tables:Ort.InferenceSession,private runtime:typeof Ort){}
 
@@ -27,18 +28,19 @@ export class YoloInference{
   catch(error){await people.release();throw error;}
  }
 
- private prepare(bitmap:ImageBitmap,crop:Crop,input:Float32Array){
-  const scale=Math.min(640/crop.w,640/crop.h),dw=Math.round(crop.w*scale),dh=Math.round(crop.h*scale),px=Math.floor((640-dw)/2),py=Math.floor((640-dh)/2);
-  const ctx=this.context;ctx.fillStyle='rgb(114,114,114)';ctx.fillRect(0,0,640,640);
+ private prepare(bitmap:ImageBitmap,crop:Crop,input:Float32Array,size=640){
+  const scale=Math.min(size/crop.w,size/crop.h),dw=Math.round(crop.w*scale),dh=Math.round(crop.h*scale),px=Math.floor((size-dw)/2),py=Math.floor((size-dh)/2);
+  if(this.canvas.width!==size){this.canvas.width=size;this.canvas.height=size;}
+  const ctx=this.context;ctx.fillStyle='rgb(114,114,114)';ctx.fillRect(0,0,size,size);
   ctx.drawImage(bitmap,crop.x,crop.y,crop.w,crop.h,px,py,dw,dh);
-  const pixels=ctx.getImageData(0,0,640,640).data;
+  const pixels=ctx.getImageData(0,0,size,size).data;
   if(input===this.fullInput)this.framePixels=pixels;
-  for(let i=0;i<640*640;i++){input[i]=pixels[i*4]/255;input[640*640+i]=pixels[i*4+1]/255;input[2*640*640+i]=pixels[i*4+2]/255;}
-  return {scale,px,py};
+  for(let i=0;i<size*size;i++){input[i]=pixels[i*4]/255;input[size*size+i]=pixels[i*4+1]/255;input[2*size*size+i]=pixels[i*4+2]/255;}
+  return {scale,px,py,size};
  }
 
- private async infer(session:Ort.InferenceSession,input:Float32Array,crop:Crop,transform:{scale:number;px:number;py:number},width:number,height:number,threshold:number,labels?:Readonly<Record<number,string>>){
-  const tensor=new this.runtime.Tensor('float32',input,[1,3,640,640]);
+ private async infer(session:Ort.InferenceSession,input:Float32Array,crop:Crop,transform:{scale:number;px:number;py:number;size:number},width:number,height:number,threshold:number,labels?:Readonly<Record<number,string>>){
+  const tensor=new this.runtime.Tensor('float32',input,[1,3,transform.size,transform.size]);
   try{
    const result=await session.run({[session.inputNames[0]]:tensor});
    try{
@@ -51,8 +53,12 @@ export class YoloInference{
  async detect(bitmap:ImageBitmap,options:VisionOptions):Promise<Detection[]>{
   const width=bitmap.width,height=bitmap.height;if(!width||!height)return [];
   const fullCrop={x:0,y:0,w:width,h:height},transform=this.prepare(bitmap,fullCrop,this.fullInput);
-  const full=(await this.infer(this.people,this.fullInput,fullCrop,transform,width,height,options.threshold,SCENE_LABELS)).map(d=>options.frontTables&&staffInBlack(d,this.framePixels,transform)?{...d,role:'staff' as const}:d),tiles:Detection[]=[];
-  if(options.detail||!options.frontTables&&options.tableDetail){
+  const input=options.detail?(this.detailInput??=new Float32Array(3*PEOPLE_MODEL.detailSize*PEOPLE_MODEL.detailSize)):this.fullInput;
+  const peopleTransform=options.detail?this.prepare(bitmap,fullCrop,input,PEOPLE_MODEL.detailSize):transform;
+  const full=(await this.infer(this.people,input,fullCrop,peopleTransform,width,height,options.threshold,SCENE_LABELS)).map(d=>options.frontTables&&staffInBlack(d,this.framePixels,transform)?{...d,role:'staff' as const}:d),tiles:Detection[]=[];
+  // Detailed mode sees the entire frame at 960px, preserving the context of
+  // overlapping bodies. Fast mode can still scan table crops at 640px.
+  if(!options.detail&&!options.frontTables&&options.tableDetail){
    for(const y of [0,height*.4])for(const x of [0,width*.4]){
     const crop={x,y,w:width*.6,h:height*.6},tileTransform=this.prepare(bitmap,crop,this.tileInput);
     const decoded=(await this.infer(this.people,this.tileInput,crop,tileTransform,width,height,options.threshold,SCENE_LABELS)).map(d=>options.frontTables&&staffInBlack(d,this.framePixels,transform)?{...d,role:'staff' as const}:d);

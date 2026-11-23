@@ -83,6 +83,7 @@ export class DynamicTableTracker {
 /** Track short-lived, approximately stationary people within each seating zone.
  * This is a motion heuristic, not seated-pose recognition. */
 export class SeatingTracker {
+ maxFrameGapMs=4000;
  private tracks=new Map<number,{x:number;y:number;anchorX:number;anchorY:number;w:number;h:number;since:number;last:number;frames:number}[]>();
  clear(){this.tracks.clear();}
  update(detections:Detection[],width:number,height:number,tables:Table[],at:number):{confirmed:Map<number,number>;present:Map<number,number>}{
@@ -94,7 +95,7 @@ export class SeatingTracker {
   const next=new Map<number,NonNullable<ReturnType<typeof this.tracks.get>>>();
   for(const table of tables){
    if(!table.roi)continue;
-   const previous=(this.tracks.get(table.id)||[]).filter(t=>at>=t.last&&at-t.last<=4000),used=new Set<number>(),current:typeof previous=[];
+   const previous=(this.tracks.get(table.id)||[]).filter(t=>at>=t.last&&at-t.last<=this.maxFrameGapMs),used=new Set<number>(),current:typeof previous=[];
    for(const d of assigned.get(table.id)||[]){
     const [bx,by,bw,bh]=d.bbox,x=(bx+bw/2)/width,y=(by+bh*.55)/height,w=bw/width,h=bh/height;
     let best=-1,bestDistance=Infinity;
