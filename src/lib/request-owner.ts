@@ -27,7 +27,16 @@ export async function withBrowserSession(
   const session = crypto.randomUUID();
   const headers = new Headers(request.headers);
   headers.set('cookie', `${headers.get('cookie') || ''}; ${SESSION_COOKIE}=${session}`);
-  const response = await handler(new Request(request, { headers }));
+  // vinext supplies a request wrapper, not an Undici Request instance. Copy
+  // public fields explicitly; new Request(request) trips Undici's brand check.
+  const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
+  const sessionRequest = new Request(request.url, {
+    method: request.method,
+    headers,
+    body: hasBody ? await request.arrayBuffer() : undefined,
+    signal: request.signal,
+  });
+  const response = await handler(sessionRequest);
   const responseHeaders = new Headers(response.headers);
   responseHeaders.append(
     'Set-Cookie',

@@ -2,11 +2,12 @@
 import {useEffect,useRef,useState} from 'react';
 import {Radio,Monitor,Copy,Square,Wifi,LoaderCircle} from 'lucide-react';
 import {cameraInviteURL,parseCameraInvite} from '../lib/camera-invite';
+import {readCameraResponse} from '../lib/camera-response';
 import {parseCameraMessage,CameraMessage,CameraSender} from '../lib/camera-sync';
 import type {CameraRoom} from '../lib/camera-api';
 type Role=''|'host'|'viewer';
 type Props={onMessage?:(m:CameraMessage)=>void;onTransport?:(send:CameraSender|null)=>void;guest?:boolean;disabled:boolean;onStream:(stream:MediaStream|null,role:Role)=>void;onRole:(role:Role)=>void};
-async function signal(body:Record<string,unknown>){const r=await fetch('/api/camera',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await r.json() as Record<string,any>;if(!r.ok)throw new Error(data.error||'Ошибка подключения');return data;}
+async function signal(body:Record<string,unknown>){const r=await fetch('/api/camera',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return readCameraResponse(r);}
 async function gather(pc:RTCPeerConnection){if(pc.iceGatheringState==='complete')return;await new Promise<void>(resolve=>{const end=()=>{clearTimeout(timer);pc.removeEventListener('icegatheringstatechange',check);resolve();};const check=()=>{if(pc.iceGatheringState==='complete')end();};const timer=setTimeout(end,8000);pc.addEventListener('icegatheringstatechange',check);});}
 export default function RemoteCamera({guest=false,disabled,onStream,onRole,onMessage,onTransport}:Props){
  const [role,setRole]=useState<Role>(''),[code,setCode]=useState(''),[roomCode,setRoomCode]=useState(''),[status,setStatus]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[connected,setConnected]=useState(false),[copied,setCopied]=useState(false);
@@ -48,7 +49,7 @@ export default function RemoteCamera({guest=false,disabled,onStream,onRole,onMes
    session.current=s;setRoomCode(s.code);setRole(next);callbacks.current.onRole(next);setBusy(false);
    let offered=false,answered=false;
    const poll=async()=>{if(!valid())return;try{
-    const response=await fetch(`/api/camera?code=${s.code}`,{headers:{'x-camera-token':s.token},cache:'no-store'});const room=await response.json() as CameraRoom&{error?:string};if(!valid())return;if(!response.ok)throw new Error(room.error||'Комната недоступна');
+    const response=await fetch(`/api/camera?code=${s.code}`,{headers:{'x-camera-token':s.token},cache:'no-store'});const room=await readCameraResponse(response) as CameraRoom;if(!valid())return;
     if(next==='host'&&room.viewer&&!offered){offered=true;setStatus('Соединяем устройства…');await pc.setLocalDescription(await pc.createOffer());await gather(pc);if(!valid())return;await signal({...s,action:'offer',sdp:pc.localDescription!.sdp});}
     if(next==='viewer'&&room.offer&&!answered){answered=true;await pc.setRemoteDescription({type:'offer',sdp:room.offer});await pc.setLocalDescription(await pc.createAnswer());await gather(pc);if(!valid())return;await signal({...s,action:'answer',sdp:pc.localDescription!.sdp});}
     if(next==='host'&&room.answer&&!pc.currentRemoteDescription)await pc.setRemoteDescription({type:'answer',sdp:room.answer});
