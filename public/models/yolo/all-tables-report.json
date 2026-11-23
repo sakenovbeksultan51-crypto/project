@@ -1,0 +1,91 @@
+{
+  "model": "YOLOv8n",
+  "scope": "All eight visible tabletops in the supplied camera scene",
+  "annotations": "ml/all-table-annotations.json",
+  "train_frames": 3,
+  "train_boxes": 24,
+  "validation_frames": 1,
+  "test_frames": 1,
+  "iou": 0.5,
+  "threshold_grid": [
+    {
+      "threshold": 0.2,
+      "tp": 6,
+      "fp": 6,
+      "fn": 2,
+      "predictions": 12
+    },
+    {
+      "threshold": 0.3,
+      "tp": 6,
+      "fp": 6,
+      "fn": 2,
+      "predictions": 12
+    },
+    {
+      "threshold": 0.4,
+      "tp": 6,
+      "fp": 6,
+      "fn": 2,
+      "predictions": 12
+    },
+    {
+      "threshold": 0.5,
+      "tp": 6,
+      "fp": 6,
+      "fn": 2,
+      "predictions": 12
+    },
+    {
+      "threshold": 0.6,
+      "tp": 6,
+      "fp": 5,
+      "fn": 2,
+      "predictions": 11
+    },
+    {
+      "threshold": 0.7,
+      "tp": 6,
+      "fp": 3,
+      "fn": 2,
+      "predictions": 9
+    },
+    {
+      "threshold": 0.8,
+      "tp": 5,
+      "fp": 0,
+      "fn": 3,
+      "predictions": 5
+    },
+    {
+      "threshold": 0.9,
+      "tp": 1,
+      "fp": 0,
+      "fn": 7,
+      "predictions": 1
+    }
+  ],
+  "selected": {
+    "threshold": 0.8,
+    "tp": 5,
+    "fp": 0,
+    "fn": 3,
+    "predictions": 5
+  },
+  "test": {
+    "tp": 3,
+    "fp": 2,
+    "fn": 5,
+    "predictions": 5
+  },
+  "onnx_sha256": "a5a51988890cd1c8121ce9a89eeec45d5e2d7d3bbc1e18e3164a3540565ab375",
+  "limitations": [
+    "Only five annotated frames from the same video; not independent cross-camera validation.",
+    "Test frame was not used for fitting or threshold selection.",
+    "Tabletop annotations do not measure seating-zone accuracy.",
+    "People use a separate detector; this fine-tuning does not train people.",
+    "No universal or 100 percent accuracy claim."
+  ],
+  "deployed": false,
+  "deployment_note": "Rejected: false positives and missed tables on final frame. Existing tabletop weights remain active."
+}

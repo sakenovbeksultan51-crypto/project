@@ -5,7 +5,7 @@ import type {VisionOptions,VisionRequest,VisionResponse} from './vision-worker-p
 export class YoloDetector{
  public detail=false;
  public tableDetail=false;
- public frontTables=true;
+ public frontTables=false;
  private closed=false;
  private sequence=0;
  private inFlight:Promise<Detection[]>|null=null;

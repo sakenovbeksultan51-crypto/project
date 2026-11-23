@@ -1,0 +1,91 @@
+{
+  "model": "YOLO11s",
+  "selected": "coco128-finetuned",
+  "selection_rule": "Validation mAP50-95 must not decrease and person/table AP50 may decrease at most 0.02. Video counts do not select the model.",
+  "dataset": {
+    "source": "https://github.com/ultralytics/assets/releases/download/v0.0.0/coco128.zip",
+    "sha256": "61e5e3028863d8ffc3b81d6a514603954889f0edd5e4b44c4ce60b2da99aeb8e",
+    "seed": 20261124,
+    "counts": {
+      "train": 80,
+      "val": 24,
+      "test": 24
+    },
+    "epochs": 8,
+    "caveat": "COCO128 is part of COCO train2017; pretrained weights may already have seen these images. Restaurant frames are not used for fitting."
+  },
+  "pretrained_validation": {
+    "map50": 0.7766874471620316,
+    "map50_95": 0.627767908731662,
+    "classes": {
+      "person": {
+        "precision": 0.6066625970547979,
+        "recall": 0.85,
+        "ap50": 0.819494020435357,
+        "ap50_95": 0.5854548203394592
+      },
+      "dining table": {
+        "precision": 0.44839108583489573,
+        "recall": 0.8279702861163191,
+        "ap50": 0.72,
+        "ap50_95": 0.5931666666666666
+      }
+    }
+  },
+  "candidate_validation": {
+    "map50": 0.7796450390823328,
+    "map50_95": 0.6305122971904502,
+    "classes": {
+      "person": {
+        "precision": 0.6113158792562567,
+        "recall": 0.85,
+        "ap50": 0.8382399837005101,
+        "ap50_95": 0.5927638253041686
+      },
+      "dining table": {
+        "precision": 0.44588607458475427,
+        "recall": 0.8196202486158475,
+        "ap50": 0.72,
+        "ap50_95": 0.6375
+      }
+    }
+  },
+  "selected_test": {
+    "map50": 0.7497660081373997,
+    "map50_95": 0.5897765856963488,
+    "classes": {
+      "person": {
+        "precision": 0.9357662877375416,
+        "recall": 0.7284817449364716,
+        "ap50": 0.8514219467940296,
+        "ap50_95": 0.6516280509916224
+      }
+    }
+  },
+  "limitations": [
+    "COCO128 may overlap model pretraining; these metrics are regression checks, not independent benchmark scores.",
+    "User restaurant video is not used for this fine-tuning. Existing separate tabletop model was previously trained on this video.",
+    "Frame detection counts are not measured precision/recall; restaurant annotations and more independent videos are needed.",
+    "No 100 percent detection claim."
+  ],
+  "onnx_sha256": "b37110a9b16439f722237bbce87fb018df5447fd4360c4c6b85e5c71efbf9830",
+  "onnx_bytes": 38012183,
+  "video_predictions": {
+    "0": {
+      "people": 6,
+      "tables": 1
+    },
+    "25": {
+      "people": 8,
+      "tables": 1
+    },
+    "70": {
+      "people": 9,
+      "tables": 3
+    },
+    "99": {
+      "people": 10,
+      "tables": 2
+    }
+  }
+}

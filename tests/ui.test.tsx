@@ -20,13 +20,13 @@ test('user can add and seat a group, serve, clean, inspect algorithms, and persi
  const {render,screen,fireEvent,waitFor,cleanup}=await import('@testing-library/react');
  const {default:Dashboard}=await import('../src/Dashboard');
  try{
-  render(<Dashboard/>);await screen.findByRole('heading',{name:'Зал в поле зрения.'});assert.equal(screen.getByLabelText('Качество').querySelector('option:checked')?.getAttribute('value'),'fast');assert.equal((screen.getByRole('slider',{name:/Порог обнаружения/}) as HTMLInputElement).value,'0.45');const originalVideo=document.querySelector('video');fireEvent.click(screen.getByRole('button',{name:'Прогноз столов'}));assert.ok(screen.getByRole('heading',{name:'Когда гости могут уйти'}));assert.ok(screen.getByText('Сейчас нет занятых столов'));assert.equal(document.querySelector('video'),originalVideo,'video analysis must survive navigation to the forecast');fireEvent.click(screen.getByRole('button',{name:'Обзор зала'}));assert.equal(document.querySelector('video'),originalVideo,'video element must survive navigation');
-  fireEvent.click(screen.getByRole('button',{name:'Помощник'}));
-  await screen.findByText('Режим сводок · LLM не подключена');
+  render(<Dashboard/>);await screen.findByRole('heading',{name:'Зал в поле зрения.'});assert.equal(screen.getByLabelText('Качество').querySelector('option:checked')?.getAttribute('value'),'fast');assert.equal((screen.getByRole('slider',{name:/Порог обнаружения/}) as HTMLInputElement).value,'0.3');const originalVideo=document.querySelector('video');fireEvent.click(screen.getByRole('button',{name:'Прогноз столов'}));assert.ok(screen.getByRole('heading',{name:'Когда гости могут уйти'}));assert.ok(screen.getByText('Сейчас нет занятых столов'));assert.equal(document.querySelector('video'),originalVideo,'video analysis must survive navigation to the forecast');fireEvent.click(screen.getByRole('button',{name:'Обзор зала'}));assert.equal(document.querySelector('video'),originalVideo,'video element must survive navigation');
+  fireEvent.click(screen.getByRole('button',{name:'AGUGAGA AI'}));
+  await screen.findByText('Режим сводок · модель не подключена');
   fireEvent.click(screen.getByRole('button',{name:'Какие столы сейчас свободны?'}));
   await screen.findByText(/Подходящие свободные столы/);
   assert.equal(document.querySelector('video'),originalVideo,'video analysis survives navigation to chat');
-  fireEvent.click(screen.getByRole('button',{name:'Обзор зала'}));fireEvent.click(screen.getByRole('button',{name:'Помощник'}));
+  fireEvent.click(screen.getByRole('button',{name:'Обзор зала'}));fireEvent.click(screen.getByRole('button',{name:'AGUGAGA AI'}));
   assert.ok(screen.getByText(/Подходящие свободные столы/),'chat survives navigation');
   fireEvent.click(screen.getByRole('button',{name:'Обзор зала'}));
   fireEvent.click(screen.getAllByRole('button',{name:'Добавить гостей'})[0]);

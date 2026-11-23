@@ -14,6 +14,7 @@ test('browser sessions accept wrapped requests and preserve POST body, origin an
   const previous=process.env.VERCEL;
   process.env.VERCEL='1';
   try {
+    assert.equal(requestOwner(new Request('https://tableflow.test/api/camera',{headers:{'oai-authenticated-user-id':'another-user'}})),null);
     const original=new Request('https://tableflow.test/api/camera',{
       method:'POST', headers:{origin:'https://tableflow.test','content-type':'application/json'},
       body:JSON.stringify({action:'create'}),

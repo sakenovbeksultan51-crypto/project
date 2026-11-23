@@ -1,13 +1,13 @@
 {
-  "model": "YOLOv8n",
-  "weights": "pretrained",
-  "onnx_sha256": "ebc8da56ecddf5dd35371f9e427ba518d331ed2459143a392011b8e24bceb9eb",
+  "model": "YOLO11s",
+  "weights": "coco128-finetuned",
+  "onnx_sha256": "b37110a9b16439f722237bbce87fb018df5447fd4360c4c6b85e5c71efbf9830",
   "license": "AGPL-3.0",
-  "source": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt",
-  "training_report": "precision-report.json",
+  "source": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11s.pt",
+  "training_report": "scene-upgrade-report.json",
   "previous_training_report": "training-report.json",
-  "default_confidence": 0.45,
-  "default_mode": "full-frame",
+  "default_confidence": 0.3,
+  "default_mode": "all tables; full-frame people with optional tiles",
   "postprocessing": "full-frame anchors, internal-tile edge filtering, contained head/torso suppression",
   "table_detector": {
     "weights": "restaurant-tables.onnx",
@@ -16,5 +16,14 @@
     "confidence": 0.2,
     "scope": "Four focus tabletops in the supplied user video; separate model, original person.onnx unchanged",
     "license": "AGPL-3.0"
-  }
+  },
+  "legacy_person_model": {
+    "model": "YOLOv8n",
+    "file": "person.onnx",
+    "sha256": "ebc8da56ecddf5dd35371f9e427ba518d331ed2459143a392011b8e24bceb9eb",
+    "report": "precision-report.json"
+  },
+  "onnx_file": "people-upgraded.onnx",
+  "video_comparison_report": "scene-video-comparison.json",
+  "rejected_table_experiment": "all-tables-report.json"
 }

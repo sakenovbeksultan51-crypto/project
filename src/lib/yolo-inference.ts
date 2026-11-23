@@ -3,6 +3,7 @@ import * as ort from 'tableflow:ort-runtime';
 import type {Detection} from './vision';
 import type {VisionOptions} from './vision-worker-protocol';
 import {RESTAURANT_MODEL} from './restaurant-model';
+import {PEOPLE_MODEL} from './people-model';
 import {decodeYolo,mergePersonTiles,nms} from './yolo-output';
 import {SCENE_LABELS,staffInBlack,tabletopSurface} from './service-vision';
 
@@ -21,7 +22,7 @@ export class YoloInference{
   ort.env.wasm.numThreads=1;ort.env.wasm.proxy=false;
   ort.env.wasm.wasmPaths=new URL('/ort/',origin).href;
   const options:Ort.InferenceSession.SessionOptions={executionProviders:['wasm'],graphOptimizationLevel:'all'};
-  const people=await ort.InferenceSession.create(new URL('/models/yolo/person.onnx',origin).href,options);
+  const people=await ort.InferenceSession.create(new URL(PEOPLE_MODEL.url,origin).href,options);
   try{return new YoloInference(people,await ort.InferenceSession.create(new URL(RESTAURANT_MODEL.url,origin).href,options),ort);}
   catch(error){await people.release();throw error;}
  }
@@ -63,10 +64,11 @@ export class YoloInference{
    }
   }
   const found=mergePersonTiles(full,tiles.filter(d=>options.detail||d.class==='dining table'),width,height,options.max);
-  if(!options.frontTables)return found;
   // Both models use exactly the same prepared frame, without a second pixel readback.
-  const tables=await this.infer(this.tables,this.fullInput,fullCrop,transform,width,height,RESTAURANT_MODEL.confidence,{60:'dining table'});
+  const tables=options.frontTables||options.tableDetail?await this.infer(this.tables,this.fullInput,fullCrop,transform,width,height,RESTAURANT_MODEL.confidence,{60:'dining table'}):[];
   const people=found.filter(d=>d.class==='person'),objects=found.filter(d=>d.class!=='person'&&d.class!=='dining table');
-  return [...people,...objects,...nms(tables,.4,RESTAURANT_MODEL.limit).map(d=>({...d,tableModel:'restaurant' as const,surface:tabletopSurface(d,people,objects,this.framePixels,transform)}))];
+  const specialized=tables.map(d=>({...d,tableModel:'restaurant' as const,...(options.frontTables?{surface:tabletopSurface(d,people,objects,this.framePixels,transform)}:{})}));
+  const candidates=options.frontTables?specialized:[...specialized,...found.filter(d=>d.class==='dining table')];
+  return [...people,...objects,...nms(candidates,.4,options.frontTables?RESTAURANT_MODEL.limit:12)];
  }
 }

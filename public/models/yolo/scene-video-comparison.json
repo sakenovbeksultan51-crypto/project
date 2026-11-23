@@ -1,0 +1,75 @@
+{
+  "threshold": 0.3,
+  "table_threshold": 0.2,
+  "frames": [
+    {
+      "second": 0,
+      "old": {
+        "people": 4,
+        "general_tables": 0,
+        "tiled_general_tables": 4,
+        "combined_tables": 5,
+        "inference_and_decode_ms": 379
+      },
+      "new": {
+        "people": 6,
+        "general_tables": 1,
+        "tiled_general_tables": 2,
+        "combined_tables": 5,
+        "inference_and_decode_ms": 601
+      }
+    },
+    {
+      "second": 25,
+      "old": {
+        "people": 4,
+        "general_tables": 0,
+        "tiled_general_tables": 3,
+        "combined_tables": 4,
+        "inference_and_decode_ms": 332
+      },
+      "new": {
+        "people": 8,
+        "general_tables": 1,
+        "tiled_general_tables": 2,
+        "combined_tables": 3,
+        "inference_and_decode_ms": 588
+      }
+    },
+    {
+      "second": 70,
+      "old": {
+        "people": 7,
+        "general_tables": 0,
+        "tiled_general_tables": 2,
+        "combined_tables": 4,
+        "inference_and_decode_ms": 330
+      },
+      "new": {
+        "people": 9,
+        "general_tables": 3,
+        "tiled_general_tables": 6,
+        "combined_tables": 6,
+        "inference_and_decode_ms": 589
+      }
+    },
+    {
+      "second": 99,
+      "old": {
+        "people": 7,
+        "general_tables": 0,
+        "tiled_general_tables": 2,
+        "combined_tables": 4,
+        "inference_and_decode_ms": 322
+      },
+      "new": {
+        "people": 10,
+        "general_tables": 2,
+        "tiled_general_tables": 5,
+        "combined_tables": 7,
+        "inference_and_decode_ms": 588
+      }
+    }
+  ],
+  "caveat": "Counts are predictions, not precision or recall. Separate tabletop weights were previously fitted to this same video. CPU timings are native ONNX, not browser WASM."
+}

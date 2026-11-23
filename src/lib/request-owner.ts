@@ -1,7 +1,9 @@
 const SESSION_COOKIE = 'tableflow_session';
 
 export function requestOwner(request: Request) {
-  const user = request.headers.get('oai-authenticated-user-id');
+  // Only Sites supplies a trusted identity header. Public Vercel visitors must
+  // use their browser session; a user-supplied header must not select an owner.
+  const user = process.env.VERCEL === '1' ? null : request.headers.get('oai-authenticated-user-id');
   if (user) return user;
 
   const session = request.headers
