@@ -17,7 +17,8 @@
     "format": "oxfmt",
     "db:generate": "drizzle-kit generate",
     "test": "tsx --test --test-concurrency=1 tests/*.test.ts tests/*.test.tsx",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "telegram:setup": "node --import tsx scripts/setup-telegram.mjs"
   },
   "dependencies": {
     "@fontsource-variable/manrope": "^5.3.0",
