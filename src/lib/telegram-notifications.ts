@@ -62,7 +62,10 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
   const key=`tg:binding:${owner}`;
   try{
    const row=await read(db,key),binding=row?JSON.parse(row.payload) as Binding:null;
-   if(request.method==='GET')return json({configured:!!botToken,connected:!!binding,enabled:binding?.enabled??false,schedulerConfigured:!!env.NOTIFICATIONS_CRON_SECRET});
+   if(request.method==='GET'){
+    const setup=env.TELEGRAM_BOT_USERNAME&&botToken?await read(db,`tg:webhook:${await hash(botToken)}`):null;
+    return json({configured:!!botToken,connected:!!binding,enabled:binding?.enabled??false,schedulerConfigured:!!env.NOTIFICATIONS_CRON_SECRET,setupPending:!!env.TELEGRAM_BOT_USERNAME&&!JSON.parse(setup?.payload||'null')?.registeredAt});
+   }
    const body=await request.json() as {action?:string;probe?:string;force?:boolean};
    if(body.action==='setup'){
     if(!env.NOTIFICATIONS_CRON_SECRET||request.headers.get('authorization')!==`Bearer ${env.NOTIFICATIONS_CRON_SECRET}`)return json({error:'Нет доступа.'},401);
