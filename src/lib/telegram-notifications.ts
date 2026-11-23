@@ -3,7 +3,7 @@ import {requestOwner} from './request-owner';
 
 type DB=Pick<D1Database,'prepare'>;
 type Row={payload:string;revision:number};
-type Binding={owner:string;chatId:number;enabled:boolean};
+type Binding={owner:string;chatId:number;enabled:boolean;welcomePending?:boolean;welcomeLeaseUntil?:number;welcomeSentAt?:number};
 type Task={tableId:number;kind:'service'|'cleaning';since:number;dueAt:number};
 type Delivery=Task&{owner:string;chatId:number;lastSent:number;leaseUntil:number;assignee?:string};
 export type TelegramEnv={TELEGRAM_BOT_TOKEN?:string;TELEGRAM_BOT_USERNAME?:string;TELEGRAM_PUBLIC_URL?:string;TELEGRAM_WEBHOOK_SECRET?:string;NOTIFICATIONS_CRON_SECRET?:string;TELEGRAM_FETCH?:typeof fetch};
@@ -64,6 +64,19 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
    await finish({signature,registeredAt:Date.now(),leaseUntil:0});return {ready:true};
   }catch(error){const delay=Number((error as {retryAfterSeconds?:number}).retryAfterSeconds)||120;await finish({signature,registeredAt:0,leaseUntil:0,retryAt:Date.now()+Math.max(120,Math.min(86400,delay+2))*1000});throw error;}
  }
+ async function deliverWelcome(binding:Binding,now=Date.now()){
+  const key=`tg:binding:${binding.owner}`,row=await read(db,key);if(!row)return false;
+  const current=JSON.parse(row.payload) as Binding;
+  if(!current.enabled||current.chatId!==binding.chatId||!current.welcomePending||(current.welcomeLeaseUntil||0)>now)return false;
+  current.welcomeLeaseUntil=now+90000;
+  const claimed=await db.prepare('UPDATE workspaces SET payload=?,revision=revision+1,updated_at=? WHERE key=? AND revision=?').bind(JSON.stringify(current),now,key,row.revision).run();
+  if(!claimed.meta.changes)return false;
+  try{
+   await telegram('sendMessage',{chat_id:current.chatId,text:'AGUGAGA AI подключён к вашей смене. Здесь появятся задачи по обслуживанию и уборке. Пороги задаются в настройках сайта.'});
+   current.welcomePending=false;current.welcomeSentAt=Date.now();current.welcomeLeaseUntil=0;
+  }catch(error){const delay=Number((error as {retryAfterSeconds?:number}).retryAfterSeconds)||0;current.welcomeLeaseUntil=Math.max(current.welcomeLeaseUntil,Date.now()+delay*1000+2000);await db.prepare('UPDATE workspaces SET payload=?,revision=revision+1,updated_at=? WHERE key=? AND revision=?').bind(JSON.stringify(current),Date.now(),key,row.revision+1).run();throw error;}
+  await db.prepare('UPDATE workspaces SET payload=?,revision=revision+1,updated_at=? WHERE key=? AND revision=?').bind(JSON.stringify(current),Date.now(),key,row.revision+1).run();return true;
+ }
  async function config(request:Request){
   const owner=requestOwner(request);if(!owner)return json({error:'Требуется сессия.'},401);
   if(request.method!=='GET'&&request.headers.get('origin')!==new URL(request.url).origin)return json({error:'Недопустимый источник.'},403);
@@ -72,7 +85,7 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
    const row=await read(db,key),binding=row?JSON.parse(row.payload) as Binding:null;
    if(request.method==='GET'){
     const setup=env.TELEGRAM_BOT_USERNAME&&botToken?await read(db,`tg:webhook:${await hash(botToken)}`):null;
-    return json({configured:!!botToken,connected:!!binding,enabled:binding?.enabled??false,schedulerConfigured:!!env.NOTIFICATIONS_CRON_SECRET,setupPending:!!env.TELEGRAM_BOT_USERNAME&&!JSON.parse(setup?.payload||'null')?.registeredAt});
+    return json({configured:!!botToken,connected:!!binding,enabled:binding?.enabled??false,welcomePending:!!binding?.welcomePending,schedulerConfigured:!!env.NOTIFICATIONS_CRON_SECRET,setupPending:!!env.TELEGRAM_BOT_USERNAME&&!JSON.parse(setup?.payload||'null')?.registeredAt});
    }
    const body=await request.json() as {action?:string;probe?:string;force?:boolean};
    if(body.action==='setup'){
@@ -109,9 +122,9 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
     await save(db,`tg:link:${await hash(code)}`,{owner,expires:Date.now()+600000});
     return json({url:`https://t.me/${username}?start=${code}`,expiresInMinutes:10});
    }
-   if(body.action==='test'&&binding){await telegram('sendMessage',{chat_id:binding.chatId,text:'AGUGAGA AI: уведомления подключены. Это проверочное сообщение.'});return json({ok:true});}
+   if(body.action==='test'&&binding){await telegram('sendMessage',{chat_id:binding.chatId,text:'AGUGAGA AI: уведомления подключены. Это проверочное сообщение.'});const latest=await read(db,key);if(latest){const current=JSON.parse(latest.payload) as Binding;if(current.chatId===binding.chatId){current.welcomePending=false;current.welcomeSentAt=Date.now();await db.prepare('UPDATE workspaces SET payload=?,revision=revision+1,updated_at=? WHERE key=? AND revision=?').bind(JSON.stringify(current),Date.now(),key,latest.revision).run();}}return json({ok:true});}
    return json({error:'Неизвестное действие или Telegram не связан.'},400);
-  }catch(error){return json({error:error instanceof Error?error.message:'Не удалось подключить Telegram.'},503);}
+  }catch(error){const delay=Number((error as {retryAfterSeconds?:number})?.retryAfterSeconds);return json({error:error instanceof Error?error.message:'Не удалось подключить Telegram.',...(Number.isFinite(delay)&&delay>0?{retryAfterSeconds:delay}:{})},503);}
  }
  async function webhook(request:Request){
   if(!env.TELEGRAM_WEBHOOK_SECRET||request.headers.get('x-telegram-bot-api-secret-token')!==env.TELEGRAM_WEBHOOK_SECRET)return json({error:'Нет доступа.'},401);
@@ -124,8 +137,9 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
     if(!link||link.expires<Date.now())return json({ok:true});
     const consumed=await db.prepare('DELETE FROM workspaces WHERE key=? AND revision=?').bind(key,row!.revision).run();
     if(!consumed.meta.changes)return json({ok:true});
-    await save(db,`tg:binding:${link.owner}`,{owner:link.owner,chatId:message.chat.id,enabled:true} satisfies Binding);
-    await telegram('sendMessage',{chat_id:message.chat.id,text:'AGUGAGA AI подключён к вашей смене. Здесь появятся задачи по обслуживанию и уборке. Пороги задаются в настройках сайта.'});
+    const binding:Binding={owner:link.owner,chatId:message.chat.id,enabled:true,welcomePending:true};
+    await save(db,`tg:binding:${link.owner}`,binding);
+    try{await deliverWelcome(binding);}catch{console.error('[telegram] welcome saved for background retry');}
    }
    const callback=update.callback_query;
    if(callback&&typeof callback.data==='string'){
@@ -160,6 +174,7 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
   let sent=0,failed=0;
   for(const row of rows.results){
    const binding=JSON.parse(row.payload) as Binding;if(!binding.enabled)continue;
+   if(binding.welcomePending){try{if(await deliverWelcome(binding,now))sent++;}catch{failed++;continue;}}
    const workspace=await read(db,`${binding.owner}:live`),state=workspace?JSON.parse(workspace.payload):null;
    if(!validateState(state))continue;
    for(const table of state.tables){

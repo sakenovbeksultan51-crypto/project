@@ -52,6 +52,20 @@ test('webhook setup preserves Telegram retry_after rather than retrying early',a
  }finally{f.sql.close();}
 });
 
+test('a temporary welcome failure preserves pairing and is retried by the dispatcher without replaying Start',async()=>{
+ const f=fixture();let offline=true;try{
+  const service=createTelegramService(f.db,{TELEGRAM_BOT_TOKEN:'private-token',TELEGRAM_BOT_USERNAME:'AGUGAGA_HELPER_BOT',TELEGRAM_WEBHOOK_SECRET:'secret'},async(url,init)=>{if(String(url).endsWith('/sendMessage')&&offline)throw new Error('temporary network failure');return f.fetcher(url,init);});
+  const link=await (await service.config(new Request('http://localhost/api/notifications',{method:'POST',headers:{origin:'http://localhost'},body:JSON.stringify({action:'link'})}))).json() as {url:string};
+  const code=new URL(link.url).searchParams.get('start');
+  const response=await service.webhook(new Request('http://localhost/api/telegram/webhook',{method:'POST',headers:{'x-telegram-bot-api-secret-token':'secret'},body:JSON.stringify({message:{text:`/start ${code}`,chat:{id:123,type:'private'}}})}));
+  assert.equal(response.status,200);
+  const before=await (await service.config(new Request('http://localhost/api/notifications'))).json() as {connected:boolean;welcomePending:boolean};assert.equal(before.connected,true);assert.equal(before.welcomePending,true);
+  offline=false;assert.deepEqual(await service.dispatch(Date.now()+91000),{sent:1,failed:0});
+  const after=await (await service.config(new Request('http://localhost/api/notifications'))).json() as {welcomePending:boolean};assert.equal(after.welcomePending,false);
+  await service.dispatch(Date.now()+181000);assert.equal(f.sent.filter(s=>s.method==='sendMessage').length,1);
+ }finally{f.sql.close();}
+});
+
 function fixture(token='private-token',status=200){
  const sql=new DatabaseSync(':memory:');sql.exec('CREATE TABLE workspaces (key TEXT PRIMARY KEY,payload TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,updated_at INTEGER NOT NULL)');
  const db={prepare(query:string){const statement=sql.prepare(query);let args:any[]=[];const p={bind(...values:any[]){args=values;return p;},async first(){return statement.get(...args)||null;},async all(){return {results:statement.all(...args)};},async run(){return {meta:{changes:Number(statement.run(...args).changes)}};}};return p;}} as unknown as D1Database;
