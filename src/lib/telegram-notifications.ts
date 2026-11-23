@@ -32,7 +32,9 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
  const botToken=env.TELEGRAM_BOT_TOKEN?.trim();
  async function telegram(method:string,body:unknown){
   if(!botToken)throw new Error('Telegram-бот ещё не подключён.');
-  const response=await fetcher(`https://api.telegram.org/bot${botToken}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(method==='setWebhook'?30000:10000)});
+  let response:Response;
+  try{response=await fetcher(`https://api.telegram.org/bot${botToken}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(method==='setWebhook'?30000:10000)});}
+  catch{throw new Error(method==='setWebhook'?'Telegram не ответил вовремя при подключении уведомлений. Повторите позже.':'Telegram не ответил вовремя при проверке бота. Повторите позже.');}
   if(response.status===401||response.status===404)throw new Error('Telegram не принял токен бота. Замените TELEGRAM_BOT_TOKEN в Vercel Production на токен из BotFather и выполните Redeploy.');
   const data=await response.json() as {ok:boolean;result:any;parameters?:{retry_after?:number}};
   if(response.status===429){const delay=Number(data.parameters?.retry_after);throw new Error(`Telegram ограничил частоту подключений.${Number.isFinite(delay)&&delay>0?` Повторите через ${Math.ceil(delay)} сек.`:' Повторите подключение через минуту.'}`);}
@@ -47,6 +49,7 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
    const row=await read(db,key),binding=row?JSON.parse(row.payload) as Binding:null;
    if(request.method==='GET')return json({configured:!!botToken,connected:!!binding,enabled:binding?.enabled??false,schedulerConfigured:!!env.NOTIFICATIONS_CRON_SECRET});
    const body=await request.json() as {action?:string};
+   if(body.action==='check'){const me=await telegram('getMe',{});return json({ok:true,bot:me.username});}
    if(body.action==='disconnect'){await db.prepare('DELETE FROM workspaces WHERE key=?').bind(key).run();return json({ok:true});}
    if(body.action==='link'){
     if(!env.TELEGRAM_WEBHOOK_SECRET)throw new Error('На сервере не настроен секрет Telegram webhook.');
