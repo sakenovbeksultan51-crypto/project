@@ -1,0 +1,21 @@
+# Keep local credentials, training data and generated artifacts off deployments.
+.git
+.openai
+.vercel
+.env*
+.dev.vars*
+.data
+.next
+.vinext
+.wrangler
+node_modules
+dist
+out
+outputs
+work
+ml
+desktop
+*.tsbuildinfo
+*.log
+**/__pycache__
+**/*.pyc
