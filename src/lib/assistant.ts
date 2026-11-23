@@ -3,7 +3,7 @@ import {bayesianForecast,forecastTable,formatForecastDuration,formatForecastTime
 
 export type ChatMessage={role:'user'|'assistant';content:string};
 export type AssistantReply={answer:string;mode:'llm'|'local';model?:string;snapshotAt:number;notice?:string};
-export type AssistantStatus={available:boolean;provider:'openai'|'ollama'|'local';model?:string;notice?:string};
+export type AssistantStatus={available:boolean;provider:'openai'|'gateway'|'ollama'|'local';model?:string;notice?:string};
 
 /** Only aggregate hall facts go to the language model: no video, guest names,
  * notes, camera addresses or raw event logs. Recomputed for every question. */

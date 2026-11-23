@@ -2,17 +2,34 @@ import {validateState} from './engine';
 import {requestOwner} from './request-owner';
 import {ASSISTANT_INSTRUCTIONS,buildAssistantContext,describeAssistantContext,localAssistantAnswer,type AssistantStatus,type ChatMessage} from './assistant';
 
-export type AssistantEnv={ASSISTANT_PROVIDER?:string;OPENAI_API_KEY?:string;OPENAI_MODEL?:string;OLLAMA_BASE_URL?:string;OLLAMA_MODEL?:string};
+export type AssistantEnv={ASSISTANT_PROVIDER?:string;OPENAI_API_KEY?:string;OPENAI_MODEL?:string;OLLAMA_BASE_URL?:string;OLLAMA_MODEL?:string;AI_GATEWAY_API_KEY?:string;AI_GATEWAY_OIDC_TOKEN?:string;AI_GATEWAY_MODEL?:string};
 const reply=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
 const FALLBACK_NOTICE='LLM сейчас недоступна. Ответ составлен локально по данным зала.';
 
 export function createAssistantAPI(env:AssistantEnv,fetcher:typeof fetch=fetch){
- const provider=env.ASSISTANT_PROVIDER||(env.OPENAI_API_KEY?'openai':'ollama');
+ const provider=env.ASSISTANT_PROVIDER||(env.OPENAI_API_KEY?'openai':env.AI_GATEWAY_API_KEY||env.AI_GATEWAY_OIDC_TOKEN?'gateway':'ollama');
+ const gatewayModel=env.AI_GATEWAY_MODEL||'nvidia/nemotron-3.5-lightning-free';
+ const gatewayToken=env.AI_GATEWAY_API_KEY||env.AI_GATEWAY_OIDC_TOKEN;
+ async function gatewayRequest(input:unknown,instructions?:string,maxTokens=1200){
+  const response=await fetcher('https://ai-gateway.vercel.sh/v1/responses',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${gatewayToken}`},signal:AbortSignal.timeout(60000),body:JSON.stringify({model:gatewayModel,input,instructions,max_output_tokens:maxTokens,store:false})});
+  if(!response.ok){
+   const error=await response.json().catch(()=>null) as {error?:{message?:string}}|null;
+   if(response.status===403&&/credit card/i.test(error?.error?.message||''))throw new Error('Vercel AI Gateway требует добавить карту в аккаунте Vercel. Пока доступны сводки по данным зала.');
+   if(response.status===402)throw new Error('Лимит AI Gateway исчерпан. Пока доступны сводки по данным зала.');
+   throw new Error(`Языковая модель временно недоступна (AI Gateway HTTP ${response.status}). Пока доступны сводки по данным зала.`);
+  }
+  return response.json() as Promise<{output?:{type:string;content?:{type:string;text?:string}[]}[]}>;
+ }
  const ollamaBase=(env.OLLAMA_BASE_URL||'http://127.0.0.1:11434').replace(/\/$/,'');
- async function status():Promise<AssistantStatus>{
+ async function status(probeGateway=false):Promise<AssistantStatus>{
+  if(provider==='gateway'){
+   if(!gatewayToken)return {available:false,provider:'local',notice:'Для AI Gateway нужен серверный ключ или OIDC-токен проекта Vercel.'};
+   if(probeGateway)try{await gatewayRequest([{type:'message',role:'user',content:'Reply OK.'}],undefined,32);}catch(error){return {available:false,provider:'local',notice:error instanceof Error?error.message:FALLBACK_NOTICE};}
+   return {available:true,provider:'gateway',model:gatewayModel};
+  }
   if(provider==='openai')return env.OPENAI_API_KEY&&env.OPENAI_MODEL?{available:true,provider:'openai',model:env.OPENAI_MODEL}:{available:false,provider:'local',notice:'Для OpenAI задайте серверные OPENAI_API_KEY и OPENAI_MODEL.'};
   if(provider==='local')return {available:false,provider:'local',notice:'Включён режим сводок. Подключите LLM для свободного диалога.'};
-  if(provider!=='ollama')return {available:false,provider:'local',notice:'Проверьте ASSISTANT_PROVIDER: ollama, openai или local.'};
+  if(provider!=='ollama')return {available:false,provider:'local',notice:'Проверьте ASSISTANT_PROVIDER: gateway, ollama, openai или local.'};
   try{
    const response=await fetcher(`${ollamaBase}/api/tags`,{signal:AbortSignal.timeout(2500)});
    if(!response.ok)throw new Error();
@@ -23,7 +40,7 @@ export function createAssistantAPI(env:AssistantEnv,fetcher:typeof fetch=fetch){
    return installed?{available:true,provider:'ollama',model}:{available:false,provider:'local',notice:'Ollama работает, но нужная модель не установлена. Загрузите её и проверьте подключение.'};
   }catch{return {available:false,provider:'local',notice:'Ollama не запущена. Пока доступны сводки по данным зала.'};}
  }
- async function GET(request:Request){if(!requestOwner(request))return reply({error:'Требуется вход в аккаунт.'},401);return reply(await status());}
+ async function GET(request:Request){if(!requestOwner(request))return reply({error:'Требуется вход в аккаунт.'},401);return reply(await status(true));}
  async function POST(request:Request){
   if(!requestOwner(request))return reply({error:'Требуется вход в аккаунт.'},401);
   const origin=request.headers.get('origin');if(origin&&origin!==new URL(request.url).origin)return reply({error:'Недопустимый источник запроса.'},403);
@@ -43,7 +60,10 @@ export function createAssistantAPI(env:AssistantEnv,fetcher:typeof fetch=fetch){
   const instructions=ASSISTANT_INSTRUCTIONS+'\n\nПоследний снимок зала:\n'+describeAssistantContext(context)+seating;
   try{
    let answer='';
-   if(connection.provider==='openai'){
+   if(connection.provider==='gateway'){
+    const data=await gatewayRequest(messages.map((message:ChatMessage)=>({type:'message',...message})),instructions);
+    answer=(data.output||[]).filter(item=>item.type==='message').flatMap(item=>item.content||[]).filter(item=>item.type==='output_text').map(item=>item.text||'').join('\n').trim();
+   }else if(connection.provider==='openai'){
     const response=await fetcher('https://api.openai.com/v1/responses',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${env.OPENAI_API_KEY}`},signal:AbortSignal.timeout(90000),body:JSON.stringify({model:connection.model,instructions,input:messages,store:false,max_output_tokens:1200})});
     if(!response.ok)throw new Error();
     const data=await response.json() as {output?:{type:string;content?:{type:string;text?:string}[]}[]};
@@ -56,7 +76,7 @@ export function createAssistantAPI(env:AssistantEnv,fetcher:typeof fetch=fetch){
    }
    if(!answer)throw new Error();
    return reply({answer:answer.slice(0,4000),mode:'llm',model:connection.model,snapshotAt:now});
-  }catch{return fallback(FALLBACK_NOTICE);}
+  }catch(error){return fallback(connection.provider==='gateway'&&error instanceof Error?error.message:FALLBACK_NOTICE);}
  }
  return {GET,POST};
 }

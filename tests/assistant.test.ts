@@ -7,6 +7,29 @@ import {createAssistantAPI} from '../src/lib/assistant-api';
 function request(body:unknown,headers:Record<string,string>={},url='http://localhost:3000/api/assistant'){return new Request(url,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body)});}
 const body=()=>({state:initialState('demo'),tableIds:[1,2,3],messages:[{role:'user',content:'Когда освободится стол 3?'}]});
 
+test('AI Gateway uses server OIDC token and computed forecasts without exposing credentials',async()=>{
+ const api=createAssistantAPI({ASSISTANT_PROVIDER:'gateway',AI_GATEWAY_OIDC_TOKEN:'private-token'},async(input,init)=>{
+  assert.equal(String(input),'https://ai-gateway.vercel.sh/v1/responses');
+  assert.equal((init?.headers as Record<string,string>).Authorization,'Bearer private-token');
+  const payload=JSON.parse(String(init?.body));
+  assert.equal(payload.store,false);
+  assert.equal(payload.input[0].type,'message');
+  assert.match(payload.instructions,/Вероятность ухода от стола №3/);
+  return Response.json({output:[{type:'message',content:[{type:'output_text',text:'Прогноз предварительный.'}]}]});
+ });
+ const result=await(await api.POST(request(body()))).json() as AssistantReply;
+ assert.equal(result.mode,'llm');assert.equal(result.answer,'Прогноз предварительный.');
+ assert.doesNotMatch(JSON.stringify(result),/private-token/);
+});
+
+test('Gateway account restrictions explain fallback instead of claiming LLM is connected',async()=>{
+ const api=createAssistantAPI({ASSISTANT_PROVIDER:'gateway',AI_GATEWAY_OIDC_TOKEN:'private-token'},async()=>Response.json({error:{message:'AI Gateway requires a valid credit card on file'}},{status:403}));
+ const status=await(await api.GET(new Request('http://localhost/api/assistant'))).json() as AssistantStatus;
+ assert.equal(status.available,false);assert.match(status.notice!,/добавить карту/);
+ const result=await(await api.POST(request(body()))).json() as AssistantReply;
+ assert.equal(result.mode,'local');assert.match(result.notice!,/добавить карту/);assert.match(result.answer,/Стол 3/);
+});
+
 test('context contains forecasts and fresh facts but excludes names, notes, camera and raw logs',()=>{
  const now=Date.now(),state=initialState('demo',now);state.queue[0].name='PRIVATE_GUEST';state.queue[0].note='PRIVATE_NOTE';state.cameraName='PRIVATE_CAMERA';state.settings.restaurant='PRIVATE_RESTAURANT';
  const context=buildAssistantContext(state,[1,2,3],now),json=JSON.stringify(context);

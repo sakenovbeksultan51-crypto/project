@@ -1,1 +1,1 @@
-declare module 'cloudflare:workers' { export const env: { DB: D1Database; ASSISTANT_PROVIDER?:string; OPENAI_API_KEY?:string; OPENAI_MODEL?:string; OLLAMA_BASE_URL?:string; OLLAMA_MODEL?:string }; }
+declare module 'cloudflare:workers' { export const env: { DB: D1Database; ASSISTANT_PROVIDER?:string; OPENAI_API_KEY?:string; OPENAI_MODEL?:string; OLLAMA_BASE_URL?:string; OLLAMA_MODEL?:string; AI_GATEWAY_API_KEY?:string; AI_GATEWAY_MODEL?:string }; }
