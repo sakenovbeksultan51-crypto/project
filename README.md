@@ -112,7 +112,7 @@ TensorFlow.js и COCO-SSD: Apache-2.0, https://github.com/tensorflow/tfjs-models
 
 ## Vercel deployment
 
-The Vercel service configuration builds the Vite app with Nitro and publishes `.vercel/output`. The `app` service handles `/` and `/api/*`. The `ml/` directory contains model training and evaluation scripts, so it is not a separate HTTP service.
+The Vercel configuration builds the Vite app with Nitro and publishes `.vercel/output`. The app and its `/api/*` endpoints deploy as one full-stack service. The `ml/` directory contains model training and evaluation scripts, so it is not a separate HTTP service.
 
 Connect a Neon database to the Vercel project and make sure it exposes `DATABASE_URL` (the app also accepts `POSTGRES_URL`). The app creates its `workspaces` table on the first API request. Without a database connection, the web page can load but saved workspaces and camera signaling will be unavailable.
 
