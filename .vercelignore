@@ -1,6 +1,5 @@
 # Keep local credentials, training data and generated artifacts off deployments.
 .git
-.openai
 .vercel
 .env*
 .dev.vars*
