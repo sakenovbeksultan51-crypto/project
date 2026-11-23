@@ -78,3 +78,12 @@ test('compact overlay badges stay in the viewport and do not overlap one another
  assert.equal(labels.length,12);
  for(const a of labels){assert.ok(a.x>=0&&a.y>=0&&a.x+a.w<=720&&a.y+a.h<=405);for(const b of labels){if(a.id===b.id)continue;const overlap=Math.max(0,Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x))*Math.max(0,Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y));assert.equal(overlap,0);}}
 });
+
+test('a shifted tabletop fragment cannot steal a second table number even with higher confidence',()=>{
+ const zones=tableZones([
+  {class:'dining table',tableModel:'restaurant',score:.48,bbox:[612,512,237,46]},
+  {class:'dining table',tableModel:'restaurant',score:.85,bbox:[601,478,126,60]},
+  {class:'dining table',tableModel:'restaurant',score:.8,bbox:[1371,538,239,61]},
+ ],1920,1080);
+ assert.equal(zones.length,2);assert.ok(zones.find(z=>z.x<.5)!.w>.12,'Preserve the complete surface rather than the smaller fragment');
+});
