@@ -13,6 +13,25 @@ test('a copied BotFather reply or quoted assignment yields its sole token; ambig
  assert.equal(normalizeTelegramToken(), '');
 });
 
+test('known bot pairing works during API outage without claiming connection or flooding webhook setup',async()=>{
+ const f=fixture();let calls=0;try{
+  const service=createTelegramService(f.db,{TELEGRAM_BOT_TOKEN:'private-token',TELEGRAM_BOT_USERNAME:'AGUGAGA_HELPER_BOT',TELEGRAM_WEBHOOK_SECRET:'secret'},async()=>{calls++;throw new Error('network offline');});
+  const r=await service.config(new Request('http://localhost/api/notifications',{method:'POST',headers:{origin:'http://localhost'},body:JSON.stringify({action:'link'})}));
+  assert.equal(r.status,200);const body=await r.json() as {url:string};assert.match(body.url,/^https:\/\/t.me\/AGUGAGA_HELPER_BOT\?start=[a-f0-9]{32}$/);assert.equal(calls,0);
+  const status=await (await service.config(new Request('http://localhost/api/notifications'))).json() as {connected:boolean};assert.equal(status.connected,false);
+  await assert.rejects(service.setupWebhook('https://public.test'));assert.equal(calls,1);
+  assert.deepEqual(await service.setupWebhook('https://public.test'),{ready:false});assert.equal(calls,1);
+ }finally{f.sql.close();}
+});
+
+test('webhook uses the canonical public site even when setup runs on a protected deployment URL',async()=>{
+ const f=fixture();try{
+  const service=createTelegramService(f.db,{TELEGRAM_BOT_TOKEN:'private-token',TELEGRAM_WEBHOOK_SECRET:'secret',TELEGRAM_PUBLIC_URL:'https://public.test'},f.fetcher);
+  assert.deepEqual(await service.setupWebhook('https://protected.vercel.app'),{ready:true});
+  assert.equal(f.sent[0].body.url,'https://public.test/api/telegram/webhook');
+ }finally{f.sql.close();}
+});
+
 function fixture(token='private-token',status=200){
  const sql=new DatabaseSync(':memory:');sql.exec('CREATE TABLE workspaces (key TEXT PRIMARY KEY,payload TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,updated_at INTEGER NOT NULL)');
  const db={prepare(query:string){const statement=sql.prepare(query);let args:any[]=[];const p={bind(...values:any[]){args=values;return p;},async first(){return statement.get(...args)||null;},async all(){return {results:statement.all(...args)};},async run(){return {meta:{changes:Number(statement.run(...args).changes)}};}};return p;}} as unknown as D1Database;

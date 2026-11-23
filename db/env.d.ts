@@ -7,6 +7,8 @@ declare namespace Cloudflare {
     OLLAMA_BASE_URL?: string;
     OLLAMA_MODEL?: string;
     TELEGRAM_BOT_TOKEN?: string;
+    TELEGRAM_BOT_USERNAME?: string;
+    TELEGRAM_PUBLIC_URL?: string;
     TELEGRAM_WEBHOOK_SECRET?: string;
     NOTIFICATIONS_CRON_SECRET?: string;
     QSTASH_CURRENT_SIGNING_KEY?: string;

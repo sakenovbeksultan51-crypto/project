@@ -6,7 +6,7 @@ type Row={payload:string;revision:number};
 type Binding={owner:string;chatId:number;enabled:boolean};
 type Task={tableId:number;kind:'service'|'cleaning';since:number;dueAt:number};
 type Delivery=Task&{owner:string;chatId:number;lastSent:number;leaseUntil:number;assignee?:string};
-export type TelegramEnv={TELEGRAM_BOT_TOKEN?:string;TELEGRAM_WEBHOOK_SECRET?:string;NOTIFICATIONS_CRON_SECRET?:string;TELEGRAM_FETCH?:typeof fetch};
+export type TelegramEnv={TELEGRAM_BOT_TOKEN?:string;TELEGRAM_BOT_USERNAME?:string;TELEGRAM_PUBLIC_URL?:string;TELEGRAM_WEBHOOK_SECRET?:string;NOTIFICATIONS_CRON_SECRET?:string;TELEGRAM_FETCH?:typeof fetch};
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
 const hash=async(text:string)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)))).map(n=>n.toString(16).padStart(2,'0')).join('');
 const read=async(db:DB,key:string)=>db.prepare('SELECT payload,revision FROM workspaces WHERE key=?').bind(key).first<Row>();
@@ -45,6 +45,17 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
   if(!response.ok||!data.ok)throw new Error(`Telegram временно недоступен (HTTP ${response.status}).`);
   return data.result;
  }
+ async function setupWebhook(origin:string,force=false){
+  if(!env.TELEGRAM_WEBHOOK_SECRET)throw new Error('На сервере не настроен секрет Telegram webhook.');
+  const url=new URL('/api/telegram/webhook',env.TELEGRAM_PUBLIC_URL||origin).href;
+  const key=`tg:webhook:${await hash(botToken||'')}`,signature=await hash(`${url}:${env.TELEGRAM_WEBHOOK_SECRET}`),row=await read(db,key),registration=row?JSON.parse(row.payload):null;
+  if(registration?.signature===signature&&registration.registeredAt&&Date.now()-registration.registeredAt<86400000)return {ready:true};
+  if(!force&&registration?.signature===signature&&registration.retryAt>Date.now())return {ready:false};
+  try{
+   await telegram('setWebhook',{url,secret_token:env.TELEGRAM_WEBHOOK_SECRET,allowed_updates:['message','callback_query']});
+   await save(db,key,{signature,registeredAt:Date.now()});return {ready:true};
+  }catch(error){await save(db,key,{signature,registeredAt:0,retryAt:Date.now()+120000});throw error;}
+ }
  async function config(request:Request){
   const owner=requestOwner(request);if(!owner)return json({error:'Требуется сессия.'},401);
   if(request.method!=='GET'&&request.headers.get('origin')!==new URL(request.url).origin)return json({error:'Недопустимый источник.'},403);
@@ -52,7 +63,11 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
   try{
    const row=await read(db,key),binding=row?JSON.parse(row.payload) as Binding:null;
    if(request.method==='GET')return json({configured:!!botToken,connected:!!binding,enabled:binding?.enabled??false,schedulerConfigured:!!env.NOTIFICATIONS_CRON_SECRET});
-   const body=await request.json() as {action?:string;probe?:string};
+   const body=await request.json() as {action?:string;probe?:string;force?:boolean};
+   if(body.action==='setup'){
+    if(!env.NOTIFICATIONS_CRON_SECRET||request.headers.get('authorization')!==`Bearer ${env.NOTIFICATIONS_CRON_SECRET}`)return json({error:'Нет доступа.'},401);
+    return json(await setupWebhook(new URL(request.url).origin,body.force===true));
+   }
    if(body.action==='diagnostics'){
     if(!env.NOTIFICATIONS_CRON_SECRET||request.headers.get('authorization')!==`Bearer ${env.NOTIFICATIONS_CRON_SECRET}`)return json({error:'Нет доступа.'},401);
     if(body.probe==='webhook'){
@@ -66,17 +81,16 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
    if(body.action==='check'){const me=await telegram('getMe',{});return json({ok:true,bot:me.username});}
    if(body.action==='disconnect'){await db.prepare('DELETE FROM workspaces WHERE key=?').bind(key).run();return json({ok:true});}
    if(body.action==='link'){
+    if(!botToken)throw new Error('Telegram-бот ещё не подключён.');
     if(!env.TELEGRAM_WEBHOOK_SECRET)throw new Error('На сервере не настроен секрет Telegram webhook.');
-    const me=await telegram('getMe',{});
-    const url=new URL('/api/telegram/webhook',request.url).href;
-    const key=`tg:webhook:${await hash(botToken||'')}`,signature=await hash(`${url}:${env.TELEGRAM_WEBHOOK_SECRET}`),row=await read(db,key),registration=row?JSON.parse(row.payload):null;
-    if(registration?.signature!==signature||Date.now()-registration.registeredAt>86400000){
-     await telegram('setWebhook',{url,secret_token:env.TELEGRAM_WEBHOOK_SECRET,allowed_updates:['message','callback_query']});
-     await save(db,key,{signature,registeredAt:Date.now()});
-    }
+    const configuredName=env.TELEGRAM_BOT_USERNAME?.trim().replace(/^@/,''),username=configuredName||(await telegram('getMe',{})).username;
+    if(!/^[A-Za-z0-9_]{5,32}$/.test(username))throw new Error('На сервере неверно настроено имя Telegram-бота.');
+    // With a known bot name, pairing must not wait on Telegram availability.
+    // The protected dispatcher provisions the webhook independently.
+    if(!configuredName)await setupWebhook(new URL(request.url).origin);
     const code=crypto.randomUUID().replaceAll('-','');
     await save(db,`tg:link:${await hash(code)}`,{owner,expires:Date.now()+600000});
-    return json({url:`https://t.me/${me.username}?start=${code}`,expiresInMinutes:10});
+    return json({url:`https://t.me/${username}?start=${code}`,expiresInMinutes:10});
    }
    if(body.action==='test'&&binding){await telegram('sendMessage',{chat_id:binding.chatId,text:'AGUGAGA AI: уведомления подключены. Это проверочное сообщение.'});return json({ok:true});}
    return json({error:'Неизвестное действие или Telegram не связан.'},400);
@@ -153,5 +167,5 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
   }
   return {sent,failed};
  }
- return {config,webhook,dispatch};
+ return {config,webhook,dispatch,setupWebhook};
 }

@@ -8,6 +8,8 @@ export async function POST(request:Request){
   try{authorized=await new Receiver({currentSigningKey:env.QSTASH_CURRENT_SIGNING_KEY,nextSigningKey:env.QSTASH_NEXT_SIGNING_KEY}).verify({signature:request.headers.get('upstash-signature')||'',body:await request.text(),url:new URL('/api/notifications/dispatch',request.url).href});}catch{}
  }
  if(!authorized)return Response.json({error:'Нет доступа.'},{status:401});
- const result=await createTelegramService(env.DB,env).dispatch();
- return Response.json(result,{status:result.failed?503:200});
+ const service=createTelegramService(env.DB,env);let setupPending=false;
+ if(env.TELEGRAM_BOT_USERNAME){try{setupPending=!(await service.setupWebhook(new URL(request.url).origin)).ready;}catch{setupPending=true;}}
+ const result=await service.dispatch();
+ return Response.json({...result,setupPending},{status:result.failed?503:200});
 }
