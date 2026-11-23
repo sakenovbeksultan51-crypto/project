@@ -6,7 +6,7 @@ type Row={payload:string;revision:number};
 type Binding={owner:string;chatId:number;enabled:boolean};
 type Task={tableId:number;kind:'service'|'cleaning';since:number;dueAt:number};
 type Delivery=Task&{owner:string;chatId:number;lastSent:number;leaseUntil:number;assignee?:string};
-export type TelegramEnv={TELEGRAM_BOT_TOKEN?:string;TELEGRAM_WEBHOOK_SECRET?:string;NOTIFICATIONS_CRON_SECRET?:string};
+export type TelegramEnv={TELEGRAM_BOT_TOKEN?:string;TELEGRAM_WEBHOOK_SECRET?:string;NOTIFICATIONS_CRON_SECRET?:string;TELEGRAM_FETCH?:typeof fetch};
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
 const hash=async(text:string)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)))).map(n=>n.toString(16).padStart(2,'0')).join('');
 const read=async(db:DB,key:string)=>db.prepare('SELECT payload,revision FROM workspaces WHERE key=?').bind(key).first<Row>();
@@ -28,13 +28,13 @@ export function notificationText(task:Task,now:number,repeat=false){
  return `AGUGAGA AI${repeat?' · Напоминание':''}\nСтол №${task.tableId}\n${task.kind==='service'?`После посадки прошло ${minutes} мин. Подход официанта не подтверждён.`:`После ухода гостей прошло ${minutes} мин. Уборка не завершена.`}`;
 }
 
-export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch=fetch){
+export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch=env.TELEGRAM_FETCH??fetch){
  const botToken=env.TELEGRAM_BOT_TOKEN?.trim();
  async function telegram(method:string,body:unknown){
   if(!botToken)throw new Error('Telegram-бот ещё не подключён.');
   let response:Response;
   try{response=await fetcher(`https://api.telegram.org/bot${botToken}/${method}`,{...(method==='getMe'?{method:'GET'}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),signal:AbortSignal.timeout(method==='setWebhook'||method==='getMe'?30000:10000)});}
-  catch(error){const e=error as {name?:string;cause?:{code?:string}};console.error('[telegram] request failed',{method,name:/^[A-Za-z]+$/.test(e.name||'')?e.name:'unknown',code:/^[A-Z_]+$/.test(e.cause?.code||'')?e.cause?.code:'unknown'});throw new Error(method==='setWebhook'?'Не удалось связаться с Telegram при подключении уведомлений. Повторите позже.':'Не удалось связаться с Telegram при проверке бота. Повторите позже.');}
+  catch(error){const e=error as {name?:string;code?:string;cause?:{code?:string}},code=e.cause?.code||e.code;console.error('[telegram] request failed',{method,name:/^[A-Za-z]+$/.test(e.name||'')?e.name:'unknown',code:/^[A-Z_]+$/.test(code||'')?code:'unknown'});throw new Error(method==='setWebhook'?'Не удалось связаться с Telegram при подключении уведомлений. Повторите позже.':'Не удалось связаться с Telegram при проверке бота. Повторите позже.');}
   if(response.status===401||response.status===404)throw new Error('Telegram не принял токен бота. Замените TELEGRAM_BOT_TOKEN в Vercel Production на токен из BotFather и выполните Redeploy.');
   const data=await response.json() as {ok:boolean;result:any;parameters?:{retry_after?:number}};
   if(response.status===429){const delay=Number(data.parameters?.retry_after);throw new Error(`Telegram ограничил частоту подключений.${Number.isFinite(delay)&&delay>0?` Повторите через ${Math.ceil(delay)} сек.`:' Повторите подключение через минуту.'}`);}

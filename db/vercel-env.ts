@@ -1,4 +1,5 @@
 import { neon } from '@neondatabase/serverless';
+import {telegramFetch} from './telegram-transport';
 
 type QueryResult = { rows: Record<string, unknown>[]; rowCount: number };
 
@@ -54,5 +55,6 @@ function createDatabase() {
 
 export const env = {
   ...process.env,
+  TELEGRAM_FETCH:telegramFetch,
   DB: createDatabase(),
 };
