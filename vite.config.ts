@@ -2,6 +2,7 @@ import { sites } from '@openai/sites-vite-plugin';
 import tailwindcss from '@tailwindcss/postcss';
 import vinext from 'vinext';
 import { defineConfig } from 'vite';
+import { fileURLToPath } from 'node:url';
 import hostingConfig from './.openai/hosting.json';
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
@@ -47,6 +48,21 @@ function workerOrtRuntime() {
 }
 
 export default defineConfig(async () => {
+  if (process.env.VERCEL === '1' || process.env.NITRO_PRESET === 'vercel') {
+    const { nitro } = await import('nitro/vite');
+
+    return {
+      worker: { format: 'es' as const, plugins: () => [workerOrtRuntime()] },
+      css: { postcss: { plugins: [tailwindcss()] } },
+      resolve: {
+        alias: {
+          'cloudflare:workers': fileURLToPath(new URL('./db/vercel-env.ts', import.meta.url)),
+        },
+      },
+      plugins: [workerOrtRuntime(), vinext(), sites(), nitro()],
+    };
+  }
+
   // Keep Wrangler and Miniflare state project-local. These are non-secret tool
   // settings; application environment belongs in ignored `.env*` files.
   process.env.WRANGLER_WRITE_LOGS ??= 'false';

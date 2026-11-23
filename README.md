@@ -109,3 +109,11 @@ TensorFlow.js и COCO-SSD: Apache-2.0, https://github.com/tensorflow/tfjs-models
 
 ### Защита от случайных проходов
 Локальный анализ и владелец удалённой камеры сопоставляют обнаруженных людей с одной зоной и отслеживают их положение. Для нового подтверждения требуется не менее двух наблюдений и 1,5 секунды почти неподвижного присутствия; накопленное движение сбрасывает ожидание. Неопределённое присутствие не меняет состояние. После подтверждения занятость меняется на следующем обработанном кадре; момент зависит от скорости обработки. Обнаружение позы или личности не выполняется: стоящий рядом сотрудник, перекрытия и плохо размеченные зоны могут вызвать ошибку. Зоны необходимо корректировать так, чтобы проходы были вне области посадки; подтверждение занимает больше времени.
+
+## Vercel deployment
+
+The Vercel service configuration builds the Vite app with Nitro and publishes `.vercel/output`. The `app` service handles `/` and `/api/*`. The `ml/` directory contains model training and evaluation scripts, so it is not a separate HTTP service.
+
+Connect a Neon database to the Vercel project and make sure it exposes `DATABASE_URL` (the app also accepts `POSTGRES_URL`). The app creates its `workspaces` table on the first API request. Without a database connection, the web page can load but saved workspaces and camera signaling will be unavailable.
+
+For the hosted AI assistant, configure `OPENAI_API_KEY` and `OPENAI_MODEL` as server-side Vercel environment variables. Otherwise it falls back to local guidance.

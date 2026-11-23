@@ -1,10 +1,12 @@
+import {requestOwner} from './request-owner';
+
 // Signalling only: camera media travels over encrypted WebRTC, never through D1.
 export type CameraRoom={code:string;expires:number;owner:string;inviteHash:string;host:string;viewer:string|null;offer:string|null;answer:string|null};
 const reply=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store','Referrer-Policy':'no-referrer'}});
 const hash=async(value:string)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))).map(n=>n.toString(16).padStart(2,'0')).join('');
 export function createCameraAPI(db:Pick<D1Database,'prepare'>){
  return async function handle(request:Request){
-  const url=new URL(request.url),user=request.headers.get('oai-authenticated-user-id')||(['localhost','127.0.0.1'].includes(url.hostname)?'local-development':null);
+  const url=new URL(request.url),user=requestOwner(request);
   if(request.method!=='GET'&&request.headers.get('origin')&&request.headers.get('origin')!==url.origin)return reply({error:'Недопустимый источник.'},403);
   try{
    let input:Record<string,unknown>={};if(request.method==='POST'){const raw=await request.text();if(raw.length>100000)return reply({error:'Запрос слишком большой.'},413);input=JSON.parse(raw);}
@@ -13,7 +15,7 @@ export function createCameraAPI(db:Pick<D1Database,'prepare'>){
     if(!user)return reply({error:'Для передачи камеры войдите через ChatGPT. Зрителю вход не нужен.'},401);
     const invite=Array.from(crypto.getRandomValues(new Uint8Array(32))).map(n=>n.toString(16).padStart(2,'0')).join('');
     const room:CameraRoom={code:crypto.randomUUID().replaceAll('-','').slice(0,12).toUpperCase(),expires:Date.now()+7200000,owner:user,inviteHash:await hash(invite),host:crypto.randomUUID(),viewer:null,offer:null,answer:null};
-    await db.prepare('DELETE FROM workspaces WHERE instr(key, ?) = 1 AND updated_at < ?').bind('camera:',Date.now()-7200000).run();
+    await db.prepare("DELETE FROM workspaces WHERE key LIKE 'camera:%' AND updated_at < ?").bind(Date.now()-7200000).run();
     await db.prepare('INSERT INTO workspaces (key,payload,revision,updated_at) VALUES (?,?,1,?)').bind(`camera:${room.code}`,JSON.stringify(room),Date.now()).run();
     return reply({code:room.code,token:room.host,invite,expires:room.expires});
    }

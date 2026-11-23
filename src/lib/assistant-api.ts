@@ -1,9 +1,9 @@
 import {validateState} from './engine';
+import {requestOwner} from './request-owner';
 import {ASSISTANT_INSTRUCTIONS,buildAssistantContext,describeAssistantContext,localAssistantAnswer,type AssistantStatus,type ChatMessage} from './assistant';
 
 export type AssistantEnv={ASSISTANT_PROVIDER?:string;OPENAI_API_KEY?:string;OPENAI_MODEL?:string;OLLAMA_BASE_URL?:string;OLLAMA_MODEL?:string};
 const reply=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
-function owner(request:Request){return request.headers.get('oai-authenticated-user-id')||(['localhost','127.0.0.1','[::1]'].includes(new URL(request.url).hostname)?'local-development':null);}
 const FALLBACK_NOTICE='LLM сейчас недоступна. Ответ составлен локально по данным зала.';
 
 export function createAssistantAPI(env:AssistantEnv,fetcher:typeof fetch=fetch){
@@ -23,9 +23,9 @@ export function createAssistantAPI(env:AssistantEnv,fetcher:typeof fetch=fetch){
    return installed?{available:true,provider:'ollama',model}:{available:false,provider:'local',notice:'Ollama работает, но нужная модель не установлена. Загрузите её и проверьте подключение.'};
   }catch{return {available:false,provider:'local',notice:'Ollama не запущена. Пока доступны сводки по данным зала.'};}
  }
- async function GET(request:Request){if(!owner(request))return reply({error:'Требуется вход в аккаунт.'},401);return reply(await status());}
+ async function GET(request:Request){if(!requestOwner(request))return reply({error:'Требуется вход в аккаунт.'},401);return reply(await status());}
  async function POST(request:Request){
-  if(!owner(request))return reply({error:'Требуется вход в аккаунт.'},401);
+  if(!requestOwner(request))return reply({error:'Требуется вход в аккаунт.'},401);
   const origin=request.headers.get('origin');if(origin&&origin!==new URL(request.url).origin)return reply({error:'Недопустимый источник запроса.'},403);
   if(Number(request.headers.get('content-length'))>600_000)return reply({error:'Слишком большой запрос.'},413);
   let body;
