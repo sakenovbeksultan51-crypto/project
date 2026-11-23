@@ -74,9 +74,13 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
      const info=await telegram('getWebhookInfo',{});
      return json({ok:true,url:info.url,pending:info.pending_update_count,lastError:info.last_error_message});
     }
-    const started=Date.now();let reachability:unknown;
+    const started=Date.now();let reachability:unknown,sameBotControl:unknown;
     try{const r=await fetcher('https://api.telegram.org/bot0:invalid/getMe',{signal:AbortSignal.timeout(5000)});reachability={status:r.status,ms:Date.now()-started};}catch(e){reachability={failed:true,ms:Date.now()-started};}
-    return json({credentialFormatValid:/^\d{5,}:[A-Za-z0-9_-]{20,}$/.test(botToken),rawChars:env.TELEGRAM_BOT_TOKEN?.length||0,tokenChars:botToken.length,transport:env.TELEGRAM_FETCH?'native-ipv4':'fetch',version:process.env.VERCEL_GIT_COMMIT_SHA,reachability});
+    const controlStarted=Date.now(),publicId=botToken.split(':')[0];
+    if(/^\d+$/.test(publicId)){
+     try{const r=await fetcher(`https://api.telegram.org/bot${publicId}:invalid/getMe`,{signal:AbortSignal.timeout(5000)});sameBotControl={status:r.status,ms:Date.now()-controlStarted};}catch{sameBotControl={failed:true,ms:Date.now()-controlStarted};}
+    }
+    return json({credentialFormatValid:/^\d{5,}:[A-Za-z0-9_-]{20,}$/.test(botToken),rawChars:env.TELEGRAM_BOT_TOKEN?.length||0,tokenChars:botToken.length,transport:env.TELEGRAM_FETCH?'native-ipv4':'fetch',version:process.env.VERCEL_GIT_COMMIT_SHA,reachability,sameBotControl});
    }
    if(body.action==='check'){const me=await telegram('getMe',{});return json({ok:true,bot:me.username});}
    if(body.action==='disconnect'){await db.prepare('DELETE FROM workspaces WHERE key=?').bind(key).run();return json({ok:true});}
