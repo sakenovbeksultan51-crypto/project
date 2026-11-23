@@ -33,8 +33,8 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
  async function telegram(method:string,body:unknown){
   if(!botToken)throw new Error('Telegram-бот ещё не подключён.');
   let response:Response;
-  try{response=await fetcher(`https://api.telegram.org/bot${botToken}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(method==='setWebhook'?30000:10000)});}
-  catch{throw new Error(method==='setWebhook'?'Telegram не ответил вовремя при подключении уведомлений. Повторите позже.':'Telegram не ответил вовремя при проверке бота. Повторите позже.');}
+  try{response=await fetcher(`https://api.telegram.org/bot${botToken}/${method}`,{...(method==='getMe'?{method:'GET'}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),signal:AbortSignal.timeout(method==='setWebhook'||method==='getMe'?30000:10000)});}
+  catch(error){const e=error as {name?:string;cause?:{code?:string}};console.error('[telegram] request failed',{method,name:/^[A-Za-z]+$/.test(e.name||'')?e.name:'unknown',code:/^[A-Z_]+$/.test(e.cause?.code||'')?e.cause?.code:'unknown'});throw new Error(method==='setWebhook'?'Не удалось связаться с Telegram при подключении уведомлений. Повторите позже.':'Не удалось связаться с Telegram при проверке бота. Повторите позже.');}
   if(response.status===401||response.status===404)throw new Error('Telegram не принял токен бота. Замените TELEGRAM_BOT_TOKEN в Vercel Production на токен из BotFather и выполните Redeploy.');
   const data=await response.json() as {ok:boolean;result:any;parameters?:{retry_after?:number}};
   if(response.status===429){const delay=Number(data.parameters?.retry_after);throw new Error(`Telegram ограничил частоту подключений.${Number.isFinite(delay)&&delay>0?` Повторите через ${Math.ceil(delay)} сек.`:' Повторите подключение через минуту.'}`);}

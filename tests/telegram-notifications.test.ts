@@ -8,7 +8,7 @@ function fixture(token='private-token',status=200){
  const sql=new DatabaseSync(':memory:');sql.exec('CREATE TABLE workspaces (key TEXT PRIMARY KEY,payload TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,updated_at INTEGER NOT NULL)');
  const db={prepare(query:string){const statement=sql.prepare(query);let args:any[]=[];const p={bind(...values:any[]){args=values;return p;},async first(){return statement.get(...args)||null;},async all(){return {results:statement.all(...args)};},async run(){return {meta:{changes:Number(statement.run(...args).changes)}};}};return p;}} as unknown as D1Database;
  const sent:{url:string;method:string;body:any}[]=[];
- const fetcher:typeof fetch=async(url,init)=>{const method=String(url).split('/').at(-1)!;sent.push({url:String(url),method,body:JSON.parse(String(init?.body))});return Response.json({ok:status===200,result:method==='getMe'?{username:'test_bot'}:{message_id:1}},{status});};
+ const fetcher:typeof fetch=async(url,init)=>{const method=String(url).split('/').at(-1)!;sent.push({url:String(url),method,body:init?.body?JSON.parse(String(init.body)):{}});return Response.json({ok:status===200,result:method==='getMe'?{username:'test_bot'}:{message_id:1}},{status});};
  const service=createTelegramService(db,{TELEGRAM_BOT_TOKEN:token,TELEGRAM_WEBHOOK_SECRET:'secret'},fetcher);
  const save=(key:string,value:unknown)=>sql.prepare('INSERT INTO workspaces VALUES (?,?,1,?) ON CONFLICT(key) DO UPDATE SET payload=excluded.payload,revision=workspaces.revision+1').run(key,JSON.stringify(value),Date.now());
  const webhook=(body:unknown,secret='secret')=>service.webhook(new Request('https://site.test/api/telegram/webhook',{method:'POST',headers:{'x-telegram-bot-api-secret-token':secret},body:JSON.stringify(body)}));
