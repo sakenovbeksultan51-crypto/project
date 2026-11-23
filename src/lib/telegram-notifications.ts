@@ -52,9 +52,13 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
   try{
    const row=await read(db,key),binding=row?JSON.parse(row.payload) as Binding:null;
    if(request.method==='GET')return json({configured:!!botToken,connected:!!binding,enabled:binding?.enabled??false,schedulerConfigured:!!env.NOTIFICATIONS_CRON_SECRET});
-   const body=await request.json() as {action?:string};
+   const body=await request.json() as {action?:string;probe?:string};
    if(body.action==='diagnostics'){
     if(!env.NOTIFICATIONS_CRON_SECRET||request.headers.get('authorization')!==`Bearer ${env.NOTIFICATIONS_CRON_SECRET}`)return json({error:'Нет доступа.'},401);
+    if(body.probe==='webhook'){
+     const info=await telegram('getWebhookInfo',{});
+     return json({ok:true,url:info.url,pending:info.pending_update_count,lastError:info.last_error_message});
+    }
     const started=Date.now();let reachability:unknown;
     try{const r=await fetcher('https://api.telegram.org/bot0:invalid/getMe',{signal:AbortSignal.timeout(5000)});reachability={status:r.status,ms:Date.now()-started};}catch(e){reachability={failed:true,ms:Date.now()-started};}
     return json({credentialFormatValid:/^\d{5,}:[A-Za-z0-9_-]{20,}$/.test(botToken),rawChars:env.TELEGRAM_BOT_TOKEN?.length||0,tokenChars:botToken.length,transport:env.TELEGRAM_FETCH?'native-ipv4':'fetch',version:process.env.VERCEL_GIT_COMMIT_SHA,reachability});
