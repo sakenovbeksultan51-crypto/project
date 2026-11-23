@@ -30,14 +30,15 @@ test('an invisible table and a brief detection dropout do not start cleanup',()=
  assert.ok(!service.update(s,[],100,100,17500,{...blank,observed:new Set([1])}).departed?.has(1));
 });
 
-test('a lost occupied table number is not given to a newly discovered empty table',()=>{
+test('an occluded occupied table retains its calibration and cannot give its number to a new table',()=>{
  const tracker=new DynamicTableTracker();let s=initialState('live',0);
  const detection:Detection={class:'dining table',score:.9,bbox:[10,30,20,10]};
  s=tracker.update(s,[detection],100,100);s=changeStatus(s,1,'occupied',0,'camera');
  for(let i=0;i<6;i++)s=tracker.update(s,[],100,100);
- assert.equal(s.tables[0].roi,null);
+ assert.ok(s.tables[0].roi);assert.ok(!tracker.visibleIds.has(1));
  s=tracker.update(s,[{...detection,bbox:[70,60,15,8]}],100,100);
- assert.equal(s.tables[0].roi,null);assert.equal(s.tables[0].status,'occupied');assert.equal(s.tables[1].status,'free');assert.ok(s.tables[1].roi);
+ s=tracker.update(s,[{...detection,bbox:[70,60,15,8]}],100,100);
+ assert.ok(s.tables[0].roi);assert.equal(s.tables[0].status,'occupied');assert.equal(s.tables[1].status,'free');assert.ok(s.tables[1].roi);
 });
 
 test('a briefly empty-looking white surface cannot bypass the confirmed departure delay',()=>{

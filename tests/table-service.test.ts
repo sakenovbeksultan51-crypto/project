@@ -23,8 +23,10 @@ test('slow inference retains evidence but a genuinely interrupted stream resets 
  const guest:Detection={class:'person',score:.9,bbox:[10,30,10,30]};
  seating.update([guest],100,100,state.tables,0);
  assert.equal(seating.update([guest],100,100,state.tables,2500).confirmed.size,0);
- assert.equal(seating.update([guest],100,100,state.tables,5000).confirmed.get(1),1);
- assert.equal(seating.update([guest],100,100,state.tables,13000).confirmed.size,0);
+ assert.equal(seating.update([guest],100,100,state.tables,5000).confirmed.size,0);
+ seating.update([guest],100,100,state.tables,7500);
+ assert.equal(seating.update([guest],100,100,state.tables,10000).confirmed.get(1),1);
+ assert.equal(seating.update([guest],100,100,state.tables,18000).confirmed.size,0);
 });
 
 test('people seated behind an empty front table do not keep the front table occupied',()=>{

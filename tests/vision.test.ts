@@ -42,11 +42,11 @@ test('dynamic discovery confirms new lower-confidence distant tables on two scan
 });
 
 
-test('focus tracking caps automatic zones and retires stale boxes after consecutive misses',async()=>{
+test('focus tracking caps zones and preserves calibrated identities through occlusion',async()=>{
  const {DynamicTableTracker}=await import('../src/lib/vision');const tracker=new DynamicTableTracker();tracker.limit=4;let s=initialState('live');
  const found=Array.from({length:5},(_,i)=>({class:'dining table',score:.8,bbox:[i*20,20,8,5] as [number,number,number,number]}));
  s=tracker.update(s,found,100,100);assert.equal(s.tables.filter(t=>t.roi).length,4);
- tracker.pin(1);for(let i=0;i<6;i++)s=tracker.update(s,[],100,100);assert.equal(s.tables.filter(t=>t.roi).length,1);assert.ok(s.tables[0].roi);
+ tracker.pin(1);for(let i=0;i<6;i++)s=tracker.update(s,[],100,100);assert.equal(s.tables.filter(t=>t.roi).length,4);assert.deepEqual([...tracker.visibleIds],[1]);
 });
 
 

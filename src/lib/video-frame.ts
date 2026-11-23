@@ -1,8 +1,8 @@
 import {AppState,observe,runAgent,changeStatus} from './engine';
-import {Detection,peopleByTable,tableZones} from './vision';
+import {Detection,peopleByTable,tableZones,tablesWithPossibleGuests} from './vision';
 import type {VideoEvidence} from './table-service';
 export function applyVideoFrame(state:AppState,detections:Detection[],width:number,height:number,at:number,tracking?:VideoEvidence):AppState{
- const counts=tracking?.confirmed||peopleByTable(detections,width,height,state.tables);let next=state;
+ const counts=tracking?.confirmed||peopleByTable(detections,width,height,state.tables),possible=tracking?null:tablesWithPossibleGuests(detections,width,height,state.tables);let next=state;
  for(const table of state.tables){
   if(!table.roi)continue;
   if(tracking?.observed&&!tracking.observed.has(table.id))continue;
@@ -15,7 +15,7 @@ export function applyVideoFrame(state:AppState,detections:Detection[],width:numb
   // The tracker has already confirmed dwell over multiple frames. Apply that
   // confirmation immediately instead of requiring another three HMM frames.
   if(tracking&&count&&(table.status==='free'||table.status==='dirty'))next=changeStatus(next,table.id,'occupied',at,'camera',count);
-  else if(!tracking)next=observe(next,table.id,count?'person':'clear',at);
+  else if(!tracking&&(count||!possible?.has(table.id)))next=observe(next,table.id,count?'person':'clear',at);
   const t=next.tables.find(t=>t.id===table.id)!;
   if(count&&t.status==='occupied'&&t.source==='camera')t.guests=Math.min(t.capacity,count);
  }

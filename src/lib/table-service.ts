@@ -1,5 +1,5 @@
 import type {AppState,Table} from './engine';
-import {Detection,sameTableZone,tableZones} from './vision';
+import {Detection,sameTableZone,tableZones,tablesWithPossibleGuests} from './vision';
 
 export type SeatingEvidence={confirmed:Map<number,number>;present:Map<number,number>;observed?:Set<number>};
 export type VideoEvidence=SeatingEvidence&{departed?:Set<number>;servicing?:Set<number>;cleaned?:Set<number>};
@@ -15,7 +15,7 @@ export class TableServiceTracker{
  pause(){this.lastAt=null;for(const m of this.memory.values()){m.emptySince=null;m.emptyFrames=0;m.staffSince=null;m.staffFrames=0;m.clearFrames=0;}}
  update(state:AppState,detections:Detection[],width:number,height:number,at:number,seating:SeatingEvidence):VideoEvidence{
   if(this.lastAt!==null&&(at<this.lastAt||at-this.lastAt>this.maxFrameGapMs))this.pause();this.lastAt=at;
-  const departed=new Set<number>(),servicing=new Set<number>(),cleaned=new Set<number>(),staffNear=new Set<number>();
+  const departed=new Set<number>(),servicing=new Set<number>(),cleaned=new Set<number>(),staffNear=new Set<number>(),possibleGuests=tablesWithPossibleGuests(detections,width,height,state.tables);
   for(const person of detections.filter(d=>d.class==='person'&&d.role==='staff')){
    const [x,y,w,h]=person.bbox,px=(x+w/2)/width,py=(y+h*.75)/height;
    const choices=state.tables.filter(t=>{const z=t.roi;return z&&px>=z.x-z.w*.4&&px<=z.x+z.w*1.4&&py>=z.y-z.h&&py<=z.y+z.h*2;});
@@ -35,7 +35,7 @@ export class TableServiceTracker{
    this.memory.set(table.id,m);
    if(seating.observed&&!seating.observed.has(table.id)){m.emptySince=null;m.emptyFrames=0;m.staffSince=null;m.staffFrames=0;m.clearFrames=0;continue;}
    const guests=(seating.present.get(table.id)||0)>0||(seating.confirmed.get(table.id)||0)>0;
-   if(guests){m.emptySince=null;m.emptyFrames=0;m.staffSince=null;m.staffFrames=0;m.clearFrames=0;m.started=false;continue;}
+   if(guests||possibleGuests.has(table.id)){m.emptySince=null;m.emptyFrames=0;m.staffSince=null;m.staffFrames=0;m.clearFrames=0;m.started=false;continue;}
    m.emptySince??=at;m.emptyFrames++;
    if(table.status==='free'){m.started=false;m.clearFrames=0;}
    if(table.status==='occupied'&&m.emptyFrames>=3&&at-m.emptySince>=this.departureDelayMs)departed.add(table.id);
