@@ -32,9 +32,10 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
  const botToken=env.TELEGRAM_BOT_TOKEN?.trim();
  async function telegram(method:string,body:unknown){
   if(!botToken)throw new Error('Telegram-бот ещё не подключён.');
-  const response=await fetcher(`https://api.telegram.org/bot${botToken}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(10000)});
+  const response=await fetcher(`https://api.telegram.org/bot${botToken}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(method==='setWebhook'?30000:10000)});
   if(response.status===401||response.status===404)throw new Error('Telegram не принял токен бота. Замените TELEGRAM_BOT_TOKEN в Vercel Production на токен из BotFather и выполните Redeploy.');
-  const data=await response.json() as {ok:boolean;result:any};
+  const data=await response.json() as {ok:boolean;result:any;parameters?:{retry_after?:number}};
+  if(response.status===429){const delay=Number(data.parameters?.retry_after);throw new Error(`Telegram ограничил частоту подключений.${Number.isFinite(delay)&&delay>0?` Повторите через ${Math.ceil(delay)} сек.`:' Повторите подключение через минуту.'}`);}
   if(!response.ok||!data.ok)throw new Error(`Telegram временно недоступен (HTTP ${response.status}).`);
   return data.result;
  }
@@ -49,8 +50,14 @@ export function createTelegramService(db:DB,env:TelegramEnv,fetcher:typeof fetch
    if(body.action==='disconnect'){await db.prepare('DELETE FROM workspaces WHERE key=?').bind(key).run();return json({ok:true});}
    if(body.action==='link'){
     if(!env.TELEGRAM_WEBHOOK_SECRET)throw new Error('На сервере не настроен секрет Telegram webhook.');
-    await telegram('setWebhook',{url:new URL('/api/telegram/webhook',request.url).href,secret_token:env.TELEGRAM_WEBHOOK_SECRET,allowed_updates:['message','callback_query']});
-    const me=await telegram('getMe',{}),code=crypto.randomUUID().replaceAll('-','');
+    const me=await telegram('getMe',{});
+    const url=new URL('/api/telegram/webhook',request.url).href;
+    const key=`tg:webhook:${await hash(botToken||'')}`,signature=await hash(`${url}:${env.TELEGRAM_WEBHOOK_SECRET}`),row=await read(db,key),registration=row?JSON.parse(row.payload):null;
+    if(registration?.signature!==signature||Date.now()-registration.registeredAt>86400000){
+     await telegram('setWebhook',{url,secret_token:env.TELEGRAM_WEBHOOK_SECRET,allowed_updates:['message','callback_query']});
+     await save(db,key,{signature,registeredAt:Date.now()});
+    }
+    const code=crypto.randomUUID().replaceAll('-','');
     await save(db,`tg:link:${await hash(code)}`,{owner,expires:Date.now()+600000});
     return json({url:`https://t.me/${me.username}?start=${code}`,expiresInMinutes:10});
    }

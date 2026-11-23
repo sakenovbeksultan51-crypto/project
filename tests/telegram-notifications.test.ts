@@ -12,19 +12,40 @@ function fixture(token='private-token',status=200){
  const service=createTelegramService(db,{TELEGRAM_BOT_TOKEN:token,TELEGRAM_WEBHOOK_SECRET:'secret'},fetcher);
  const save=(key:string,value:unknown)=>sql.prepare('INSERT INTO workspaces VALUES (?,?,1,?) ON CONFLICT(key) DO UPDATE SET payload=excluded.payload,revision=workspaces.revision+1').run(key,JSON.stringify(value),Date.now());
  const webhook=(body:unknown,secret='secret')=>service.webhook(new Request('https://site.test/api/telegram/webhook',{method:'POST',headers:{'x-telegram-bot-api-secret-token':secret},body:JSON.stringify(body)}));
- return {sql,service,sent,save,webhook};
+ return {sql,db,fetcher,service,sent,save,webhook};
 }
 
 test('pasted token whitespace is trimmed and rejected credentials get an actionable private error',async()=>{
  for(const status of [200,404,401]){
   const f=fixture(' private-token\r\n',status);try{
    const response=await f.service.config(new Request('http://localhost/api/notifications',{method:'POST',headers:{origin:'http://localhost'},body:JSON.stringify({action:'link'})}));
-   assert.equal(f.sent[0].url,'https://api.telegram.org/botprivate-token/setWebhook');
+   assert.equal(f.sent[0].url,'https://api.telegram.org/botprivate-token/getMe');
    assert.equal(response.status,status===200?200:503);
    const text=await response.text();assert.doesNotMatch(text,/private-token/);
    if(status!==200)assert.match(text,/TELEGRAM_BOT_TOKEN/);
   }finally{f.sql.close();}
  }
+});
+
+test('repeated linking reuses webhook registration; token rotation registers the new bot',async()=>{
+ const f=fixture();try{
+  const request=()=>new Request('http://localhost/api/notifications',{method:'POST',headers:{origin:'http://localhost'},body:JSON.stringify({action:'link'})});
+  assert.equal((await f.service.config(request())).status,200);
+  assert.equal((await f.service.config(request())).status,200);
+  assert.equal(f.sent.filter(s=>s.method==='setWebhook').length,1);
+  assert.equal(f.sent.filter(s=>s.method==='getMe').length,2);
+  const rotated=createTelegramService(f.db,{TELEGRAM_BOT_TOKEN:'rotated-token',TELEGRAM_WEBHOOK_SECRET:'secret'},f.fetcher);
+  assert.equal((await rotated.config(request())).status,200);
+  assert.equal(f.sent.filter(s=>s.method==='setWebhook').length,2);
+ }finally{f.sql.close();}
+});
+
+test('Telegram rate limit shows the actual retry delay without exposing credentials',async()=>{
+ const f=fixture();try{
+  const service=createTelegramService(f.db,{TELEGRAM_BOT_TOKEN:'private-token',TELEGRAM_WEBHOOK_SECRET:'secret'},async()=>Response.json({ok:false,parameters:{retry_after:42}},{status:429}));
+  const r=await service.config(new Request('http://localhost/api/notifications',{method:'POST',headers:{origin:'http://localhost'},body:JSON.stringify({action:'link'})}));
+  assert.equal(r.status,503);const body=await r.text();assert.match(body,/42/);assert.doesNotMatch(body,/private-token/);
+ }finally{f.sql.close();}
 });
 test('cleaning deadline survives entering cleaning; manual completion and approach close tasks',()=>{
  const now=Date.now();let state=initialState('live',now);
