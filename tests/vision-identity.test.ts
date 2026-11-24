@@ -47,16 +47,19 @@ test('a weak nearby person blocks false departure without occupying a free table
 
 for(const cadence of [1,2,3,4])test(`43-second CCTV regression at ${cadence}s sampling: six stable tables, no false cleaning`,()=>{
  const tracker=new DynamicTableTracker(),seating=new SeatingTracker(),service=new TableServiceTracker();let s=initialState('live',0);
- service.maxFrameGapMs=cadence*1000+500;seating.maxFrameGapMs=service.maxFrameGapMs;
+ service.maxFrameGapMs=cadence*1000+500;seating.maxFrameGapMs=service.maxFrameGapMs;let occupiedAt:number|undefined;
  for(const f of fixture.frames.filter(f=>f.second%cadence===0)){
   const at=f.second*1000;s=tracker.update(s,f.detections,f.width,f.height);
   const e=seating.update(f.detections,f.width,f.height,s.tables.filter(t=>tracker.visibleIds.has(t.id)),at);
   s=applyVideoFrame(s,f.detections,f.width,f.height,at,service.update(s,f.detections,f.width,f.height,at,e));
+  if(s.tables[2].status==='occupied')occupiedAt??=f.second;
   assert.deepEqual(s.tables.filter(t=>t.roi).map(t=>t.id),[1,2,3,4,5,6],`No duplicate IDs at ${f.second}s`);
   assert.equal(s.visits.length,0,`Guests have not left during the clip at ${f.second}s`);
   assert.ok(!s.tables.some(t=>t.status==='dirty'),`No cleanup while guests remain at ${f.second}s`);
  }
  assert.equal(s.tables[2].status,'occupied','The guests at the right-hand table must still be seated');
+ if(cadence===1)assert.ok(occupiedAt!==undefined&&occupiedAt<=20,`Right-hand guests should be recognized promptly, got ${occupiedAt}`);
+ assert.equal(s.tables[3].status,'occupied','The newly seated group at the left-hand table must be recognized by the end');
  assert.equal(s.tables[0].status,'free','The worker wiping the rear table is not a completed guest visit');
 });
 

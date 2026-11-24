@@ -132,15 +132,17 @@ export class SeatingTracker {
  maxFrameGapMs=4000;
  dwellMs=10000;
  minimumFrames=4;
+ groupDwellMs=3000;
+ private groups=new Map<number,{since:number;last:number;frames:number}>();
  private tracks=new Map<number,{x:number;y:number;anchorX:number;anchorY:number;w:number;h:number;since:number;last:number;frames:number}[]>();
- clear(){this.tracks.clear();}
+ clear(){this.tracks.clear();this.groups.clear();}
  update(detections:Detection[],width:number,height:number,tables:Table[],at:number):{confirmed:Map<number,number>;present:Map<number,number>;observed:Set<number>}{
   const confirmed=new Map<number,number>(),present=new Map<number,number>(),observed=new Set(tables.filter(t=>t.roi).map(t=>t.id));
   if(width<=0||height<=0){this.clear();return {confirmed,present,observed:new Set()};}
   const assigned=new Map<number,Detection[]>();
   // Use the same single-table assignment as occupancy, preserving overlap handling.
   for(const [person,id] of assignedPeople(detections,width,height,tables))assigned.set(id,[...(assigned.get(id)||[]),person]);
-  const next=new Map<number,NonNullable<ReturnType<typeof this.tracks.get>>>();
+  const groupGap=Math.min(this.maxFrameGapMs*2,8000),next=new Map<number,NonNullable<ReturnType<typeof this.tracks.get>>>(),groups=new Map([...this.groups].filter(([,g])=>at>=g.last&&at-g.last<=groupGap));
   for(const table of tables){
    if(!table.roi)continue;
    const previous=(this.tracks.get(table.id)||[]).filter(t=>at>=t.last&&at-t.last<=this.maxFrameGapMs),used=new Set<number>(),current:typeof previous=[];
@@ -156,10 +158,16 @@ export class SeatingTracker {
     current.push(track);if(track.frames>=this.minimumFrames&&at-track.since>=this.dwellMs)confirmed.set(table.id,(confirmed.get(table.id)||0)+1);
    }
    if(current.length)present.set(table.id,current.length);
+   // Several people repeatedly near one surface are stronger evidence than
+   // a single passing worker. Confirm the group without waiting for every
+   // individual track to settle, while still requiring separate observations.
+   const prevGroup=this.groups.get(table.id),recentGroup=prevGroup&&at>=prevGroup.last&&at-prevGroup.last<=groupGap?prevGroup:undefined;
+   if(current.length>=2){const group=recentGroup?{...recentGroup,last:at,frames:recentGroup.frames+1}:{since:at,last:at,frames:1};groups.set(table.id,group);if(group.frames>=2&&at-group.since>=this.groupDwellMs)confirmed.set(table.id,Math.max(confirmed.get(table.id)||0,current.length));}
+   else if(recentGroup)groups.set(table.id,recentGroup);
    // Brief detector dropouts do not erase a person's track.
    const retained=previous.filter((_,i)=>!used.has(i));
    if(current.length||retained.length)next.set(table.id,[...current,...retained]);
   }
-  this.tracks=next;return {confirmed,present,observed};
+  this.tracks=next;this.groups=groups;return {confirmed,present,observed};
  }
 }
