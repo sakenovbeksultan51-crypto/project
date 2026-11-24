@@ -17,7 +17,7 @@ export function applyVideoFrame(state:AppState,detections:Detection[],width:numb
   if(tracking&&count&&(table.status==='free'||table.status==='dirty'))next=changeStatus(next,table.id,'occupied',at,'camera',count);
   else if(!tracking&&(count||!possible?.has(table.id)))next=observe(next,table.id,count?'person':'clear',at);
   const t=next.tables.find(t=>t.id===table.id)!;
-  if(count&&t.status==='occupied'&&t.source==='camera')t.guests=Math.min(t.capacity,count);
+  if(count&&t.status==='occupied'&&t.source==='camera')t.guests=Math.min(20,count);
  }
  return runAgent(next,at);
 }

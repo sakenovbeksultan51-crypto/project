@@ -3,7 +3,7 @@ import * as ort from 'tableflow:ort-runtime';
 import {plausiblePerson,type Detection} from './vision';
 import type {VisionOptions} from './vision-worker-protocol';
 import {RESTAURANT_MODEL} from './restaurant-model';
-import {PEOPLE_MODEL} from './people-model';
+import {PEOPLE_MODEL,peopleDetailSize} from './people-model';
 import {decodeYolo,mergePersonTiles,nms} from './yolo-output';
 import {SCENE_LABELS,staffInBlack,tabletopSurface} from './service-vision';
 
@@ -53,10 +53,12 @@ export class YoloInference{
  async detect(bitmap:ImageBitmap,options:VisionOptions):Promise<Detection[]>{
   const width=bitmap.width,height=bitmap.height;if(!width||!height)return [];
   const fullCrop={x:0,y:0,w:width,h:height},transform=this.prepare(bitmap,fullCrop,this.fullInput);
-  const input=options.detail?(this.detailInput??=new Float32Array(3*PEOPLE_MODEL.detailSize*PEOPLE_MODEL.detailSize)):this.fullInput;
-  const peopleTransform=options.detail?this.prepare(bitmap,fullCrop,input,PEOPLE_MODEL.detailSize):transform;
+  const detailSize=peopleDetailSize(width);
+  if(options.detail&&this.detailInput?.length!==3*detailSize*detailSize)this.detailInput=new Float32Array(3*detailSize*detailSize);
+  const input=options.detail?this.detailInput!:this.fullInput;
+  const peopleTransform=options.detail?this.prepare(bitmap,fullCrop,input,detailSize):transform;
   const full=(await this.infer(this.people,input,fullCrop,peopleTransform,width,height,options.threshold,SCENE_LABELS)).map(d=>options.frontTables&&staffInBlack(d,this.framePixels,transform)?{...d,role:'staff' as const}:d),tiles:Detection[]=[];
-  // Detailed mode sees the entire frame at 960px, preserving the context of
+  // Detailed mode sees the entire frame at 800 or 960px, preserving the context of
   // overlapping bodies. Fast mode can still scan table crops at 640px.
   if(!options.detail&&!options.frontTables&&options.tableDetail){
    for(const y of [0,height*.4])for(const x of [0,width*.4]){

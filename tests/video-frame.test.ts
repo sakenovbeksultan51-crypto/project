@@ -24,3 +24,10 @@ test('new clip clears old camera beliefs without inventing completed visits',asy
  const {resetVideoZones}=await import('../src/lib/video-frame');let s=initialState('live',0);s=changeStatus(s,1,'occupied',1000,'camera');s.tables[0].roi={x:0,y:0,w:0.5,h:0.5};
  const next=resetVideoZones(s,2000);assert.equal(next.tables[0].status,'free');assert.equal(next.tables[0].roi,null);assert.equal(next.visits.length,0);assert.ok(validateState(next));
 });
+
+test('camera can report four visible guests even at a table configured for two places',()=>{
+ let s=initialState('live',0);s.tables[3].roi={x:.1,y:.3,w:.3,h:.2,kind:'tabletop'};assert.equal(s.tables[3].capacity,2);
+ const tracking={confirmed:new Map([[4,4]]),present:new Map([[4,4]]),observed:new Set([4])};
+ s=applyVideoFrame(s,[],100,100,1000,tracking);assert.equal(s.tables[3].status,'occupied');assert.equal(s.tables[3].guests,4);assert.equal(s.tables[3].capacity,2);assert.ok(validateState(s));
+ s=applyVideoFrame(s,[],100,100,2000,tracking);assert.equal(s.tables[3].guests,4);assert.ok(validateState(s));
+});

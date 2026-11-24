@@ -2,6 +2,11 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {YoloDetector} from '../src/lib/yolo-detector';
 import type {VisionRequest,VisionResponse} from '../src/lib/vision-worker-protocol';
+import {peopleDetailSize} from '../src/lib/people-model';
+
+test('detailed inference uses the faster size for 1280px video but retains detail on larger frames',()=>{
+ assert.equal(peopleDetailSize(1280),800);assert.equal(peopleDetailSize(1920),960);
+});
 
 class FakeWorker{
  static instances:FakeWorker[]=[];
