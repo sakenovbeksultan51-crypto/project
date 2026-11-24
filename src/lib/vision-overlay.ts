@@ -37,7 +37,7 @@ export function drawVisionOverlay(ctx:CanvasRenderingContext2D,options:{viewport
   ctx.beginPath();ctx.moveTo(x-6,y-11);ctx.lineTo(x+6,y-11);ctx.lineTo(x,y);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
   if(debug){ctx.strokeStyle='rgba(135,196,255,.7)';ctx.lineWidth=1;ctx.strokeRect(v.x+bx/width*v.w,v.y+by/height*v.h,bw/width*v.w,bh/height*v.h);ctx.fillStyle='#e0efff';ctx.fillText(`${Math.round(d.score*100)}%`,v.x+bx/width*v.w+3,Math.max(v.y+12,v.y+by/height*v.h-3));}
  }
- if(debug||calibrating)for(const t of tables){const z=t.roi;if(!z)continue;ctx.strokeStyle=t.id===selected?'#f8fafc':colors[t.status];ctx.lineWidth=t.id===selected?2:1;ctx.setLineDash([5,5]);ctx.strokeRect(v.x+z.x*v.w,v.y+z.y*v.h,z.w*v.w,z.h*v.h);ctx.setLineDash([]);}
+ if(debug||calibrating)for(const t of tables){const z=t.roi;if(!z)continue;const x=v.x+z.x*v.w,y=v.y+z.y*v.h,w=z.w*v.w,h=z.h*v.h;ctx.setLineDash([]);ctx.strokeStyle='rgba(0,0,0,.85)';ctx.lineWidth=5;ctx.strokeRect(x,y,w,h);ctx.strokeStyle=t.id===selected?'#fff':colors[t.status];ctx.lineWidth=2.5;ctx.strokeRect(x,y,w,h);}
  for(const badge of layoutTableBadges(tables,v,headRects)){
   const cx=badge.x+badge.w/2,cy=badge.y+badge.h/2;
   if(Math.hypot(cx-badge.anchorX,cy-badge.anchorY)>16){ctx.strokeStyle=badge.color;ctx.globalAlpha=.65;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(badge.anchorX,badge.anchorY);ctx.lineTo(cx,cy);ctx.stroke();ctx.globalAlpha=1;}
