@@ -23,9 +23,9 @@ export function applyVideoFrame(state:AppState,detections:Detection[],width:numb
 }
 
 /** A new recording must not inherit a stale camera belief from the previous clip. */
-export function resetVideoZones(state:AppState,at:number,clearZones=true):AppState{
- const resetIds=state.tables.filter(t=>t.source==='camera').map(t=>t.id);
- return {...state,tables:state.tables.map(t=>({...t,roi:clearZones?null:t.roi,lastObservation:null,streak:0,...(t.source==='camera'?{status:'free' as const,since:at,cleaningSince:null,guests:0,servedAt:null,confidence:null,belief:[1,0,0]}:{})})),alerts:state.alerts.map(a=>resetIds.includes(a.tableId)?{...a,done:true}:a)};
+export function resetVideoZones(state:AppState,at:number,clearZones=true,resetManual=false):AppState{
+ const resetIds=state.tables.filter(t=>resetManual||t.source==='camera').map(t=>t.id);
+ return {...state,tables:state.tables.map(t=>({...t,roi:clearZones?null:t.roi,lastObservation:null,streak:0,...(resetIds.includes(t.id)?{status:'free' as const,since:at,cleaningSince:null,guests:0,servedAt:null,confidence:null,belief:[1,0,0]}:{})})),alerts:state.alerts.map(a=>resetIds.includes(a.tableId)?{...a,done:true}:a)};
 }
 
 /** Find table zones again on later frames if the first frame had none. */

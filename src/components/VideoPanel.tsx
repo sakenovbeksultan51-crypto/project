@@ -1,7 +1,7 @@
 'use client';
 import {useRef,useState,useEffect} from 'react';
 import {Video,Upload,Play,Pause,ScanLine,LoaderCircle,Camera,Trash2,Info,Maximize,Minimize} from 'lucide-react';
-import {AppState,Zone} from '../lib/engine';
+import {AppState,Zone,initialState} from '../lib/engine';
 import {Detection,DynamicTableTracker,SeatingTracker} from '../lib/vision';
 import {TableServiceTracker} from '../lib/table-service';
 import {applyVideoFrame,resetVideoZones} from '../lib/video-frame';
@@ -13,7 +13,10 @@ import {changeStatus,resetShift} from '../lib/engine';
 export type VideoSession={source:string;active:boolean;frames:number;remoteRole?:''|'host'|'viewer'};
 type Detector={detect:(v:HTMLVideoElement,n?:number,min?:number)=>Promise<Detection[]>;dispose:()=>void;idle?:()=>Promise<void>;detail?:boolean;tableDetail?:boolean;frontTables?:boolean;frame?:ImageBitmap|null;frameTime?:number;clearFrame?:()=>void};
 type Props={guest?:boolean;state:AppState;update:(f:(s:AppState)=>AppState)=>void;notify:(text:string)=>void;goLive:()=>void;onSession:(v:VideoSession)=>void};
-export default function VideoPanel({guest=false,state,update,notify,goLive,onSession}:Props){
+export default function VideoPanel({guest=false,state:workspaceState,update:workspaceUpdate,notify,goLive,onSession}:Props){
+ const [playback,setPlayback]=useState<AppState|null>(null),playbackRef=useRef<AppState|null>(null);
+ const state=playback??workspaceState;
+ const update:Props['update']=f=>{if(playbackRef.current!==null)setPlayback(s=>{if(!s)return s;const next=f(s);playbackRef.current=next;return next;});else workspaceUpdate(f);};
  const video=useRef<HTMLVideoElement>(null),file=useRef<HTMLInputElement>(null),model=useRef<Detector|null>(null),stream=useRef<MediaStream|null>(null),objectURL=useRef(''),alive=useRef(true),running=useRef(false),timer=useRef<ReturnType<typeof setTimeout>|null>(null),epoch=useRef(0),canvas=useRef<HTMLCanvasElement>(null);
  const stage=useRef<HTMLDivElement>(null);
  const [fullscreen,setFullscreen]=useState(false),[overlayDebug,setOverlayDebug]=useState(false);
@@ -56,11 +59,11 @@ export default function VideoPanel({guest=false,state,update,notify,goLive,onSes
  useEffect(()=>{if(remoteRole==='host'&&syncReady&&sharedEpoch.current)send.current?.(layoutMessage(state,sharedEpoch.current,++layoutRevision.current));},[state.tables,remoteRole,syncReady,remoteEpoch]);
  useEffect(()=>{if(remoteRole==='viewer'&&syncReady&&sharedEpoch.current)send.current?.({type:'analysis-status',epoch:sharedEpoch.current,active});},[active,syncReady,remoteRole,remoteEpoch]);
  function editZone(id:number,roi:Zone|null){tableDiscovery.current.pin(id);seatingTracker.current.clear();const old=latest.current.tables.find(t=>t.id===id)?.roi;if(old&&!roi)tableDiscovery.current.reject(old);const zones=tableCalibration(latest.current).map(z=>z.id===id?{...z,roi}:z);update(s=>applyCalibration(s,zones));if(roleRef.current==='viewer'&&sharedEpoch.current)send.current?.({type:'calibration',epoch:sharedEpoch.current,zones});}
- function resetZones(){update(s=>resetVideoZones(s,Date.now()));}
- function upload(f?:File){if(!f)return;if(!f.type.startsWith('video/')){setError('Выберите видео MP4, WebM или MOV.');return;}clearSource();resetZones();pendingAuto.current=true;const url=URL.createObjectURL(f);objectURL.current=url;setSource(f.name);setError('');if(video.current){video.current.srcObject=null;video.current.src=url;video.current.load();}setCalibrating(false);notify('Видео открыто. Распознавание и поиск столиков запустятся автоматически.');}
- async function webcam(){try{clearSource();const media=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280}},audio:false});if(!alive.current){media.getTracks().forEach(t=>t.stop());return;}pendingAuto.current=true;stream.current=media;if(video.current){video.current.removeAttribute('src');video.current.srcObject=media;await video.current.play();}resetZones();setSource('Камера устройства');setError('');setCalibrating(false);}catch{setError('Не удалось получить доступ к камере. Проверьте разрешение браузера или загрузите видео.');}}
+ function resetZones(){update(s=>resetVideoZones(s,Date.now(),true,playbackRef.current!==null));}
+ function upload(f?:File){if(!f)return;if(!f.type.startsWith('video/')){setError('Выберите видео MP4, WebM или MOV.');return;}clearSource();const fresh=initialState('live');fresh.startedAt=workspaceState.startedAt;fresh.settings={...workspaceState.settings};fresh.tables=fresh.tables.map(t=>{const old=workspaceState.tables.find(x=>x.id===t.id);return old?{...t,capacity:old.capacity,zone:old.zone}:t;});playbackRef.current=fresh;latest.current=fresh;setPlayback(fresh);pendingAuto.current=true;const url=URL.createObjectURL(f);objectURL.current=url;setSource(f.name);setError('');if(video.current){video.current.srcObject=null;video.current.src=url;video.current.load();}setCalibrating(false);notify('Видео открыто в отдельном просмотре. Рабочая смена сохранена.');}
+ async function webcam(){try{clearSource();playbackRef.current=null;setPlayback(null);const media=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280}},audio:false});if(!alive.current){media.getTracks().forEach(t=>t.stop());return;}pendingAuto.current=true;stream.current=media;if(video.current){video.current.removeAttribute('src');video.current.srcObject=media;await video.current.play();}workspaceUpdate(s=>resetVideoZones(s,Date.now()));setSource('Камера устройства');setError('');setCalibrating(false);}catch{setError('Не удалось получить доступ к камере. Проверьте разрешение браузера или загрузите видео.');}}
  function remoteStream(media:MediaStream|null,role:''|'host'|'viewer'){
-  clearSource();setError('');setCalibrating(false);
+  clearSource();playbackRef.current=null;setPlayback(null);setError('');setCalibrating(false);
   if(!media){sharedEpoch.current='';receivedRevision.current=0;setRemoteEpoch('');setRemoteAnalysis(false);setSource('');if(video.current){video.current.srcObject=null;video.current.removeAttribute('src');video.current.load();}return;}
   if(role==='host'){sharedEpoch.current=crypto.randomUUID();layoutRevision.current=0;receivedFrame.current=0;setRemoteEpoch(sharedEpoch.current);}else if(!sharedEpoch.current)resetZones();pendingAuto.current=role==='viewer';stream.current=media;
   setSource(role==='host'?'Трансляция камеры · передача':'Удалённая камера · просмотр');
@@ -77,7 +80,7 @@ export default function VideoPanel({guest=false,state,update,notify,goLive,onSes
   const visible=tableDiscovery.current.visibleIds,tables=latest.current.tables.filter(t=>t.roi&&(!analyzing||visible.has(t.id)));
   drawVisionOverlay(ctx,{viewport:{x:viewport.left,y:viewport.top,w:viewport.width,h:viewport.height},people:analyzing?results.current:[],tables,width:v.videoWidth,height:v.videoHeight,debug:settings.debug,calibrating:settings.calibrating,selected:settings.calibrating?settings.selected:undefined});
  }
- function seeked(){sourceStartedAt.current=Date.now();if(running.current)stop();serviceTracker.current.clear();seatingTracker.current.clear();tableDiscovery.current.clear();initialized.current=false;tableScan.current=true;results.current=[];update(s=>resetVideoZones(s,Date.now()));draw();}
+ function seeked(){sourceStartedAt.current=Date.now();if(running.current)stop();serviceTracker.current.clear();seatingTracker.current.clear();tableDiscovery.current.clear();initialized.current=false;tableScan.current=true;results.current=[];update(s=>resetVideoZones(s,Date.now(),true,playbackRef.current!==null));draw();}
  function rescan(){stop();serviceTracker.current.clear();seatingTracker.current.clear();tableDiscovery.current.clear();results.current=[];initialized.current=false;resetZones();tableScan.current=true;if(source)void start();}
 
  useEffect(()=>{draw();},[state.tables,source,frontTables,active,overlayDebug,calibrating,tableId]);
@@ -123,7 +126,7 @@ export default function VideoPanel({guest=false,state,update,notify,goLive,onSes
   finally{starting.current=false;if(alive.current)setLoading(false);}
  }
  function point(e:React.PointerEvent<HTMLDivElement>){const v=video.current;if(!v)return{x:0,y:0};const r=e.currentTarget.getBoundingClientRect();const viewport=viewportForVideo(v);const x=(e.clientX-r.left-viewport.left)/viewport.width;const y=(e.clientY-r.top-viewport.top)/viewport.height;return{x:Math.max(0,Math.min(1,x)),y:Math.max(0,Math.min(1,y))};}
- return <><RemoteCamera onMessage={receive} onTransport={transport} guest={guest} disabled={active||loading||state.mode==='demo'} onStream={remoteStream} onRole={setRemoteRole}/><div className="video-layout"><section className="panel"><div className="panel-head"><div><h2>Видеоаналитика</h2><p>{remoteRole==='host'?'Камера передаётся подключённому устройству':remoteRole==='viewer'?'Прямой эфир · распознавание на этом устройстве':'Локальная обработка · видео остаётся на вашем устройстве'}</p></div><span className={'pill '+(active||remoteAnalysis?'green':'neutral')}><span className="dot"/>{remoteRole==='host'?(remoteAnalysis?'Анализ со второго устройства':'Ожидаем анализ зрителя'):active?'Анализ идёт':'Остановлено'}</span></div>
+ return <><RemoteCamera onMessage={receive} onTransport={transport} guest={guest} disabled={active||loading||state.mode==='demo'} onStream={remoteStream} onRole={setRemoteRole}/><div className="video-layout"><section className="panel"><div className="panel-head"><div><h2>Видеоаналитика</h2><p>{playback?'Просмотр записи · отдельная карта, рабочая смена не меняется':remoteRole==='host'?'Камера передаётся подключённому устройству':remoteRole==='viewer'?'Прямой эфир · распознавание на этом устройстве':'Локальная обработка · видео остаётся на вашем устройстве'}</p></div><span className={'pill '+(active||remoteAnalysis?'green':'neutral')}><span className="dot"/>{remoteRole==='host'?(remoteAnalysis?'Анализ со второго устройства':'Ожидаем анализ зрителя'):active?'Анализ идёт':'Остановлено'}</span></div>
  {state.mode==='demo'&&<div className="notice"><Info size={18}/><span>Для анализа собственного видео откройте рабочую смену. Демо-данные останутся отдельно.</span><button className="btn small" onClick={goLive}>Рабочая смена</button></div>}
  {!state.tables.some(t=>t.roi)&&source&&<div className="notice calibration-needed"><ScanLine size={18}/><span><strong>Столы пока не привязаны.</strong> Покажите столешницы целиком или нажмите «Выделить область». Без зон состояния столов не определяются.</span></div>}
  {remoteRole==='host'&&<div className="notice"><Info size={18}/><span>{syncReady?'Карта и наблюдения поступают с устройства просмотра. Уборку можно подтвердить здесь.':'Откройте приглашение на втором устройстве. Там начнётся распознавание, затем карта появится и здесь.'}</span></div>}
