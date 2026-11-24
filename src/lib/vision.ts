@@ -63,7 +63,9 @@ export function tablesWithPossibleGuests(detections:Detection[],width:number,hei
   for(const d of detections){if(d.class!=='person'||d.role==='staff'||d.score<.25||!plausiblePerson(d,width,height))continue;
    const [px,py,pw,ph]=d.bbox,x=px/width,y=py/height,w=pw/width,h=ph/height;
    const overlapX=Math.max(0,Math.min(x+w,z.x+z.w*1.3)-Math.max(x,z.x-z.w*.3));
-   if(overlapX>=Math.min(w,z.w)*.2&&y+h>=z.y-z.h*.4&&y+h*.25<=z.y+z.h*1.2&&y+h*.65>=z.y-Math.max(z.h*.7,h*.25)){possible.add(t.id);break;}
+   // A person behind a foreground table must overlap the tabletop vertically;
+   // touching its upper edge alone is not evidence of a guest at that table.
+   if(overlapX>=Math.min(w,z.w)*.2&&y+h>=z.y+z.h*.15&&y+h*.25<=z.y+z.h*1.2&&y+h*.65>=z.y-Math.max(z.h*.7,h*.25)){possible.add(t.id);break;}
   }
  }return possible;
 }

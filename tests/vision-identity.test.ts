@@ -59,3 +59,16 @@ for(const cadence of [1,2,3,4])test(`43-second CCTV regression at ${cadence}s sa
  assert.equal(s.tables[2].status,'occupied','The guests at the right-hand table must still be seated');
  assert.equal(s.tables[0].status,'free','The worker wiping the rear table is not a completed guest visit');
 });
+
+test('a guest behind the foreground table cannot keep it occupied after its guest leaves',()=>{
+ const frames=JSON.parse(readFileSync(new URL('./fixtures/lifecycle-observations.json',import.meta.url),'utf8')) as {time:number;detections:Detection[]}[];
+ const tracker=new DynamicTableTracker(),seating=new SeatingTracker(),service=new TableServiceTracker();let s=initialState('live',0);
+ service.maxFrameGapMs=10000;seating.maxFrameGapMs=10000;let before=false,after=false;
+ for(const f of frames){const at=f.time*1000;s=tracker.update(s,f.detections,3840,2160);
+  const evidence=seating.update(f.detections,3840,2160,s.tables.filter(t=>tracker.visibleIds.has(t.id)),at);
+  s=applyVideoFrame(s,f.detections,3840,2160,at,service.update(s,f.detections,3840,2160,at,evidence));
+  if(f.time>=61&&f.time<65){assert.equal(s.tables[6].status,'occupied');before=true;}
+  if(f.time>=84&&f.time<87){assert.equal(s.tables[6].status,'dirty');assert.equal(s.tables[9].status,'occupied');after=true;}
+ }
+ assert.ok(before&&after);
+});
