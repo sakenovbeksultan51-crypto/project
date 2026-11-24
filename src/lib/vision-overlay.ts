@@ -3,7 +3,7 @@ import type {Detection} from './vision';
 
 type Rect={x:number;y:number;w:number;h:number};
 export type OverlayBadge=Rect&{id:number;text:string;color:string;anchorX:number;anchorY:number};
-const colors={free:'#58d6aa',occupied:'#f4bd64',dirty:'#fb967e',cleaning:'#88c8f4'};
+const colors={free:'#8abfa5',occupied:'#f4bd64',dirty:'#fb967e',cleaning:'#88c8f4'};
 const overlap=(a:Rect,b:Rect)=>Math.max(0,Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x))*Math.max(0,Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y));
 
 /** Compact table labels stay in the picture and avoid heads and other labels. */
